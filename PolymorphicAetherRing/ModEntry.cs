@@ -74,36 +74,32 @@ public class ModEntry : Mod
     {
         _combatManager = new RingCombatManager(Helper, Monitor);
         
-        // 检查玩家是否已拥有戒指（检查背包和戒指槽）
         var player = Game1.player;
-        bool hasRing = false;
-        
-        // 检查背包
-        foreach (var item in player.Items)
+        string mailFlag = "xixifu.AetherRing_Received";
+
+        // 如果已经收到过（有标记），直接返回
+        if (player.hasOrWillReceiveMail(mailFlag))
         {
-            if (item?.QualifiedItemId == QualifiedRingId)
-            {
-                hasRing = true;
-                break;
-            }
+            return;
         }
         
-        // 检查戒指槽
-        if (!hasRing)
-        {
-            if (player.leftRing.Value?.QualifiedItemId == QualifiedRingId ||
-                player.rightRing.Value?.QualifiedItemId == QualifiedRingId)
-            {
-                hasRing = true;
-            }
-        }
+        // 深度检查玩家是否已拥有戒指（包括组合戒指的情况）
+        bool hasRing = IsRingOwned(player);
         
-        if (!hasRing)
+        if (hasRing)
         {
+            // 补上标记
+            player.mailReceived.Add(mailFlag);
+            Monitor.Log("Legacy player detected (Checked deep storage): Added missing mail flag for Aether Ring.", LogLevel.Info);
+        }
+        else
+        {
+            // 真正的新玩家：赠送戒指并添加标记
             try
             {
                 var ring = ItemRegistry.Create(QualifiedRingId);
                 player.addItemByMenuIfNecessary(ring);
+                player.mailReceived.Add(mailFlag);
                 Monitor.Log("Granted Polymorphic Aether Ring to player.", LogLevel.Info);
             }
             catch (Exception ex)
@@ -111,6 +107,43 @@ public class ModEntry : Mod
                 Monitor.Log($"Failed to create ring: {ex.Message}", LogLevel.Error);
             }
         }
+    }
+
+    /// <summary>检查玩家是否拥有戒指（递归检查组合戒指）</summary>
+    private bool IsRingOwned(Farmer player)
+    {
+        // 1. 检查背包
+        foreach (var item in player.Items)
+        {
+            if (item == null) continue;
+            if (IsItemTargetRing(item)) return true;
+        }
+        
+        // 2. 检查装备槽
+        if (IsItemTargetRing(player.leftRing.Value)) return true;
+        if (IsItemTargetRing(player.rightRing.Value)) return true;
+        
+        return false;
+    }
+
+    /// <summary>递归检查物品是否为目标戒指</summary>
+    private bool IsItemTargetRing(Item? item)
+    {
+        if (item == null) return false;
+
+        // 直接匹配
+        if (item.QualifiedItemId == QualifiedRingId) return true;
+
+        // 检查组合戒指
+        if (item is StardewValley.Objects.CombinedRing combinedRing)
+        {
+            foreach (var child in combinedRing.combinedRings)
+            {
+                if (IsItemTargetRing(child)) return true;
+            }
+        }
+        
+        return false;
     }
 
 
