@@ -3,6 +3,7 @@ using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Monsters;
 using StardewValley.Objects;
+using PolymorphicAetherRing;
 
 namespace PolymorphicAetherRing.Framework;
 
@@ -11,6 +12,7 @@ public class RingCombatManager
 {
     private readonly IModHelper _helper;
     private readonly IMonitor _monitor;
+    private readonly ModConfig _config;
     
     /// <summary>上次攻击后经过的毫秒数</summary>
     private double _timeSinceLastAttack;
@@ -24,10 +26,11 @@ public class RingCombatManager
     /// <summary>缓存的戒指引用</summary>
     private Item? _cachedRing;
 
-    public RingCombatManager(IModHelper helper, IMonitor monitor)
+    public RingCombatManager(IModHelper helper, IMonitor monitor, ModConfig config)
     {
         _helper = helper;
         _monitor = monitor;
+        _config = config;
         _timeSinceLastAttack = 0;
         _currentCooldownMs = 400; // 默认冷却
     }
@@ -57,8 +60,12 @@ public class RingCombatManager
             
             if (_cachedFusionData != null)
             {
-                _currentCooldownMs = _cachedFusionData.GetAttackIntervalMs();
-                _monitor.Log($"Loaded fusion data: {_cachedFusionData.WeaponName}, cooldown: {_currentCooldownMs}ms", LogLevel.Debug);
+                // 应用冷却倍率
+                _currentCooldownMs = (int)(_cachedFusionData.GetAttackIntervalMs() * _config.CooldownMultiplier);
+                // 确保至少有 100ms
+                if (_currentCooldownMs < 100) _currentCooldownMs = 100;
+                
+                _monitor.Log($"Loaded fusion data: {_cachedFusionData.WeaponName}, cooldown: {_currentCooldownMs}ms (Mult: {_config.CooldownMultiplier})", LogLevel.Debug);
             }
         }
 
@@ -86,42 +93,42 @@ public class RingCombatManager
         }
     }
 
-    /// <summary>获取玩家装备的以太戒指（支持组合戒指）</summary>
+    /// <summary>获取玩家装备的特定戒指</summary>
     private Item? GetEquippedAetherRing(Farmer player)
     {
-        // 检查左戒指槽
-        var leftFound = FindAetherRing(player.leftRing.Value);
-        if (leftFound != null) return leftFound;
+        // 检查左手
+        var left = FindAetherRing(player.leftRing.Value);
+        if (left != null) return left;
 
-        // 检查右戒指槽
-        var rightFound = FindAetherRing(player.rightRing.Value);
-        if (rightFound != null) return rightFound;
-        
+        // 检查右手
+        var right = FindAetherRing(player.rightRing.Value);
+        if (right != null) return right;
+
         return null;
     }
 
-    /// <summary>递归查找以太戒指</summary>
-    private Item? FindAetherRing(StardewValley.Objects.Ring? ring)
+    /// <summary>递归查找目标戒指</summary>
+    private Item? FindAetherRing(Item? item)
     {
-        if (ring == null) return null;
-        
+        if (item == null) return null;
+
         // 1. 直接匹配
-        if (ring.QualifiedItemId == ModEntry.QualifiedRingId) 
-            return ring;
-            
+        if (item.QualifiedItemId == ModEntry.QualifiedRingId || item.ItemId == ModEntry.RingId) 
+            return item;
+
         // 2. 检查组合戒指
-        if (ring is StardewValley.Objects.CombinedRing combinedRing)
+        if (item is StardewValley.Objects.CombinedRing combinedRing)
         {
-            foreach (var childRing in combinedRing.combinedRings)
+            foreach (var child in combinedRing.combinedRings)
             {
-                var found = FindAetherRing(childRing);
+                var found = FindAetherRing(child);
                 if (found != null) return found;
             }
         }
-        
+
         return null;
     }
-
+    
     /// <summary>执行光环攻击</summary>
     /// <returns>是否命中任何目标</returns>
     private bool ExecuteAuraAttack(Farmer player, FusedWeaponData fusionData)
@@ -131,7 +138,10 @@ public class RingCombatManager
             return false;
 
         var playerCenter = player.getStandingPosition();
-        var attackRadius = fusionData.GetAttackRadius();
+        
+        // 应用范围倍率
+        var attackRadius = fusionData.GetAttackRadius() * _config.RangeMultiplier;
+        
         var radiusSquared = attackRadius * attackRadius;
 
         // 收集范围内的所有怪物
@@ -180,6 +190,9 @@ public class RingCombatManager
         
         // 计算基础伤害
         int damage = random.Next(fusionData.MinDamage, fusionData.MaxDamage + 1);
+        
+        // 应用伤害倍率
+        damage = (int)(damage * _config.DamageMultiplier);
         
         // 暴击判定
         bool isCrit = random.NextDouble() < fusionData.CritChance;

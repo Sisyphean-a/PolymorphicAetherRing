@@ -18,15 +18,87 @@ public class ModEntry : Mod
     /// <summary>战斗管理器</summary>
     private RingCombatManager? _combatManager;
 
+    /// <summary>配置项</summary>
+    public ModConfig Config { get; private set; } = new();
+
     public override void Entry(IModHelper helper)
     {
-        // 注册事件
+        // 1. 读取配置
+        Config = helper.ReadConfig<ModConfig>();
+        
+        // 2. 注册事件
         helper.Events.Content.AssetRequested += OnAssetRequested;
+        helper.Events.GameLoop.GameLaunched += OnGameLaunched;
         helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
         helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
         helper.Events.Input.ButtonPressed += OnButtonPressed;
         
         Monitor.Log("Polymorphic Aether Ring mod loaded!", LogLevel.Info);
+    }
+
+    /// <summary>游戏启动时注册GMCM</summary>
+    private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
+    {
+        // 获取 GMCM API
+        var configMenu = Helper.ModRegistry.GetApi<IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu");
+        if (configMenu == null)
+        {
+            Monitor.Log("Generic Mod Config Menu not found or API mismatch.", LogLevel.Debug);
+            return;
+        }
+
+        // 注册模组配置
+        configMenu.Register(
+            mod: ModManifest,
+            reset: () => Config = new ModConfig(),
+            save: () => Helper.WriteConfig(Config)
+        );
+
+        // 添加配置项
+        configMenu.AddSectionTitle(ModManifest, () => "Combat Settings");
+
+        configMenu.AddNumberOption(
+            mod: ModManifest,
+            name: () => "Damage Multiplier",
+            tooltip: () => "Directly multiplies the damage of the ring aura.",
+            getValue: () => Config.DamageMultiplier,
+            setValue: value => Config.DamageMultiplier = value,
+            min: 0.1f,
+            max: 5.0f,
+            interval: 0.1f
+        );
+
+        configMenu.AddNumberOption(
+            mod: ModManifest,
+            name: () => "Range Multiplier",
+            tooltip: () => "Multiplies the attack radius.",
+            getValue: () => Config.RangeMultiplier,
+            setValue: value => Config.RangeMultiplier = value,
+            min: 0.5f,
+            max: 3.0f,
+            interval: 0.1f
+        );
+        
+        configMenu.AddNumberOption(
+            mod: ModManifest,
+            name: () => "Cooldown Multiplier",
+            tooltip: () => "Multiplies the attack cooldown (lower is faster).",
+            getValue: () => Config.CooldownMultiplier,
+            setValue: value => Config.CooldownMultiplier = value,
+            min: 0.1f,
+            max: 2.0f,
+            interval: 0.1f
+        );
+        
+        configMenu.AddSectionTitle(ModManifest, () => "Fusion Settings");
+        
+        configMenu.AddBoolOption(
+            mod: ModManifest,
+            name: () => "Return Fused Weapon",
+            tooltip: () => "If true, the previously fused weapon will be returned to your inventory when you fuse a new one.",
+            getValue: () => Config.ReturnFusedWeapon,
+            setValue: value => Config.ReturnFusedWeapon = value
+        );
     }
 
     /// <summary>注册戒指数据资产</summary>
@@ -72,11 +144,13 @@ public class ModEntry : Mod
     /// <summary>存档加载时赠送戒指</summary>
     private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
     {
-        _combatManager = new RingCombatManager(Helper, Monitor);
+        // 传递 Config
+        _combatManager = new RingCombatManager(Helper, Monitor, Config);
         
         var player = Game1.player;
         string mailFlag = "xixifu.AetherRing_Received";
-
+        // ... (remaining gifting logic logic unchanged) ...
+        
         // 如果已经收到过（有标记），直接返回
         if (player.hasOrWillReceiveMail(mailFlag))
         {
@@ -185,7 +259,8 @@ public class ModEntry : Mod
 
         // 拦截默认行为并打开熔铸菜单
         Helper.Input.Suppress(e.Button);
-        Game1.activeClickableMenu = new FusionMenu(currentItem, Helper, Monitor);
+        // 传递 Config
+        Game1.activeClickableMenu = new FusionMenu(currentItem, Helper, Monitor, Config);
         Monitor.Log("Opened Fusion Menu", LogLevel.Debug);
     }
 }

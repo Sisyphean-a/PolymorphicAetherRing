@@ -4,6 +4,7 @@ using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Menus;
 using StardewValley.Tools;
+using PolymorphicAetherRing;
 
 namespace PolymorphicAetherRing.Framework;
 
@@ -13,6 +14,7 @@ public class FusionMenu : IClickableMenu
     private readonly Item _trinket;
     private readonly IModHelper _helper;
     private readonly IMonitor _monitor;
+    private readonly ModConfig _config;
     
     // UI Components
     private InventoryMenu _inventory = null!; // Suppress null warning as it is initialized in InitializeLayout
@@ -31,7 +33,7 @@ public class FusionMenu : IClickableMenu
 
     private Texture2D _trinketTexture;
 
-    public FusionMenu(Item trinket, IModHelper helper, IMonitor monitor)
+    public FusionMenu(Item trinket, IModHelper helper, IMonitor monitor, ModConfig config)
         : base(
             (Game1.uiViewport.Width - 832) / 2,
             (Game1.uiViewport.Height - 576) / 2,
@@ -43,6 +45,7 @@ public class FusionMenu : IClickableMenu
         _trinket = trinket;
         _helper = helper;
         _monitor = monitor;
+        _config = config;
         
         // 加载自定义纹理
         _trinketTexture = _helper.ModContent.Load<Texture2D>("assets/trinket.png");
@@ -51,12 +54,12 @@ public class FusionMenu : IClickableMenu
         _currentFusion = FusedWeaponData.FromModData(trinket);
         
         // 初始化UI区域
-        // 初始化UI区域
         InitializeLayout();
     }
 
     private void InitializeLayout()
     {
+        // ... (layout initialization code)
         // 1. 初始化库存菜单 (放置在窗口下半部分)
         // InventoryMenu 通常宽为 12 * 64 + 边距
         _inventory = new InventoryMenu(
@@ -89,7 +92,7 @@ public class FusionMenu : IClickableMenu
     {
         return item is MeleeWeapon;
     }
-
+    
     public override void draw(SpriteBatch b)
     {
         // 1. 绘制黑色遮罩
@@ -291,6 +294,32 @@ public class FusionMenu : IClickableMenu
     private void PerformFusion()
     {
         if (_slottedWeapon == null) return;
+
+        // 0. 检查是否需要返还旧武器
+        if (_config.ReturnFusedWeapon && _currentFusion != null && _currentFusion.IsValid)
+        {
+            try
+            {
+                Item oldWeapon = ItemRegistry.Create(_currentFusion.WeaponId);
+                // 尝试给玩家
+                var added = Game1.player.addItemToInventory(oldWeapon);
+                
+                if (added == null) // 成功加入背包
+                {
+                    Game1.addHUDMessage(new HUDMessage($"已返还: {_currentFusion.WeaponName}"));
+                }
+                else // 背包已满，丢到地上
+                {
+                    Game1.createItemDebris(oldWeapon, Game1.player.getStandingPosition(), -1);
+                    Game1.addHUDMessage(new HUDMessage($"背包已满，丢弃: {_currentFusion.WeaponName}"));
+                }
+            }
+            catch (Exception ex)
+            {
+                _monitor.Log($"Failed to return old weapon ({_currentFusion.WeaponName}): {ex}", LogLevel.Error);
+                Game1.showRedMessage("返还旧武器失败");
+            }
+        }
 
         // 1. 提取数据
         var fusionData = FusedWeaponData.FromWeapon(_slottedWeapon);
