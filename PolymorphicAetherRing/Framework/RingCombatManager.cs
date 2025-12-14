@@ -2,12 +2,11 @@ using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Monsters;
-using StardewValley.Objects.Trinkets;
 
 namespace PolymorphicAetherRing.Framework;
 
 /// <summary>战斗光环管理器 - 处理360度自动攻击</summary>
-public class TrinketCombatManager
+public class RingCombatManager
 {
     private readonly IModHelper _helper;
     private readonly IMonitor _monitor;
@@ -21,10 +20,10 @@ public class TrinketCombatManager
     /// <summary>缓存的熔铸数据</summary>
     private FusedWeaponData? _cachedFusionData;
     
-    /// <summary>缓存的饰品引用</summary>
-    private Trinket? _cachedTrinket;
+    /// <summary>缓存的戒指引用</summary>
+    private Item? _cachedRing;
 
-    public TrinketCombatManager(IModHelper helper, IMonitor monitor)
+    public RingCombatManager(IModHelper helper, IMonitor monitor)
     {
         _helper = helper;
         _monitor = monitor;
@@ -39,20 +38,20 @@ public class TrinketCombatManager
         if (player == null || !Context.IsPlayerFree)
             return;
 
-        // 检查玩家是否装备了我们的饰品
-        var trinket = GetEquippedAetherTrinket(player);
-        if (trinket == null)
+        // 检查玩家是否装备了我们的戒指
+        var ring = GetEquippedAetherRing(player);
+        if (ring == null)
         {
-            _cachedTrinket = null;
+            _cachedRing = null;
             _cachedFusionData = null;
             return;
         }
 
-        // 如果饰品改变了，重新读取熔铸数据
-        if (trinket != _cachedTrinket)
+        // 如果戒指改变了，重新读取熔铸数据
+        if (ring != _cachedRing)
         {
-            _cachedTrinket = trinket;
-            _cachedFusionData = FusedWeaponData.FromModData(trinket);
+            _cachedRing = ring;
+            _cachedFusionData = FusedWeaponData.FromModData(ring);
             
             if (_cachedFusionData != null)
             {
@@ -76,15 +75,17 @@ public class TrinketCombatManager
         }
     }
 
-    /// <summary>获取玩家装备的以太饰品</summary>
-    private Trinket? GetEquippedAetherTrinket(Farmer player)
+    /// <summary>获取玩家装备的以太戒指</summary>
+    private Item? GetEquippedAetherRing(Farmer player)
     {
-        // 遍历玩家的饰品槽位
-        foreach (var trinket in player.trinketItems)
-        {
-            if (trinket?.QualifiedItemId == ModEntry.QualifiedTrinketId)
-                return trinket;
-        }
+        // 检查左戒指槽
+        if (player.leftRing.Value?.QualifiedItemId == ModEntry.QualifiedRingId)
+            return player.leftRing.Value;
+        
+        // 检查右戒指槽
+        if (player.rightRing.Value?.QualifiedItemId == ModEntry.QualifiedRingId)
+            return player.rightRing.Value;
+        
         return null;
     }
 
