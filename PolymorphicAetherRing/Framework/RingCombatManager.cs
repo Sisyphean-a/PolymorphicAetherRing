@@ -35,38 +35,12 @@ public class RingCombatManager
     /// <summary>每帧更新</summary>
     public void Update()
     {
-        // 强制日志：证明Update正在运行
-        bool shouldLog = Game1.ticks % 60 == 0;
-        if (shouldLog)
-        {
-             // _monitor.Log($"[Debug] Combat Update Tick. Player: {Game1.player?.Name}, Free: {Context.IsPlayerFree}", LogLevel.Info);
-        }
-
         var player = Game1.player;
-        if (player == null) 
+        if (player == null || !Context.IsPlayerFree)
             return;
-
-        if (!Context.IsPlayerFree)
-        {
-            // if (shouldLog) _monitor.Log("[Debug] Player not free", LogLevel.Info);
-            return;
-        }
 
         // 检查玩家是否装备了我们的戒指
         var ring = GetEquippedAetherRing(player);
-        
-        // 详细调试：如果没找到戒指，打印当前戒指槽里是什么
-        if (ring == null && shouldLog)
-        {
-            string leftId = player.leftRing.Value?.QualifiedItemId ?? "null";
-            string rightId = player.rightRing.Value?.QualifiedItemId ?? "null";
-            // _monitor.Log($"[Debug] No Aether Ring found. Left: {leftId}, Right: {rightId}", LogLevel.Info);
-            
-            _cachedRing = null;
-            _cachedFusionData = null;
-            return;
-        }
-
         if (ring == null)
         {
             _cachedRing = null;
@@ -77,39 +51,38 @@ public class RingCombatManager
         // 如果戒指改变了，重新读取熔铸数据
         if (ring != _cachedRing)
         {
-            _monitor.Log($"[Debug] Ring equipped! Name: {ring.Name}, ItemId: {ring.QualifiedItemId}", LogLevel.Info);
+            // _monitor.Log($"[Debug] Ring equipped! Name: {ring.Name}", LogLevel.Trace);
             _cachedRing = ring;
             _cachedFusionData = FusedWeaponData.FromModData(ring);
             
             if (_cachedFusionData != null)
             {
                 _currentCooldownMs = _cachedFusionData.GetAttackIntervalMs();
-                _monitor.Log($"[Debug] Loaded fusion data: {_cachedFusionData.WeaponName}, cooldown: {_currentCooldownMs}ms", LogLevel.Info);
-            }
-            else
-            {
-                _monitor.Log("[Debug] Fusion data is null or empty.", LogLevel.Warn);
+                _monitor.Log($"Loaded fusion data: {_cachedFusionData.WeaponName}, cooldown: {_currentCooldownMs}ms", LogLevel.Debug);
             }
         }
-        
-        // ... (后续逻辑保持不变)
-        
+
         // 如果没有熔铸数据，不执行攻击
         if (_cachedFusionData == null || !_cachedFusionData.IsValid)
-        {
-            // if (shouldLog) _monitor.Log("[Debug] No valid fusion data.", LogLevel.Info);
             return;
-        }
 
         // 累计时间
         _timeSinceLastAttack += Game1.currentGameTime.ElapsedGameTime.TotalMilliseconds;
 
         // 检查冷却
+        // 只有当时间足够，并且成功执行了攻击（命中了目标）时，才扣除冷却时间
         if (_timeSinceLastAttack >= _currentCooldownMs)
         {
-            _monitor.Log($"[Debug] Attack cooldown ready. Executing attack.", LogLevel.Trace);
-            _timeSinceLastAttack = 0;
-            ExecuteAuraAttack(player, _cachedFusionData);
+            if (ExecuteAuraAttack(player, _cachedFusionData))
+            {
+                // 使用减法而不是置0，以保持长期平均频率准确
+                _timeSinceLastAttack -= _currentCooldownMs;
+                
+                // 如果累积时间仍然远大于冷却（例如卡顿后），重置为0以避免瞬间爆发多次攻击
+                if (_timeSinceLastAttack > _currentCooldownMs)
+                    _timeSinceLastAttack = 0;
+            }
+            // 如果没命中，保持 _timeSinceLastAttack 不变（满能量状态），下一帧继续尝试
         }
     }
 
@@ -124,16 +97,6 @@ public class RingCombatManager
         var rightFound = FindAetherRing(player.rightRing.Value);
         if (rightFound != null) return rightFound;
         
-        // 调试日志：如果什么都没找到，但装备了东西
-        bool log = Game1.ticks % 120 == 0;
-        if (log && _cachedRing == null)
-        {
-            if (player.leftRing.Value != null) 
-                _monitor.Log($"[Debug] Left ring: {player.leftRing.Value.QualifiedItemId} ({player.leftRing.Value.GetType().Name})", LogLevel.Info);
-            if (player.rightRing.Value != null)
-                _monitor.Log($"[Debug] Right ring: {player.rightRing.Value.QualifiedItemId} ({player.rightRing.Value.GetType().Name})", LogLevel.Info);
-        }
-
         return null;
     }
 
@@ -160,11 +123,12 @@ public class RingCombatManager
     }
 
     /// <summary>执行光环攻击</summary>
-    private void ExecuteAuraAttack(Farmer player, FusedWeaponData fusionData)
+    /// <returns>是否命中任何目标</returns>
+    private bool ExecuteAuraAttack(Farmer player, FusedWeaponData fusionData)
     {
         var location = player.currentLocation;
         if (location == null)
-            return;
+            return false;
 
         var playerCenter = player.getStandingPosition();
         var attackRadius = fusionData.GetAttackRadius();
@@ -172,15 +136,12 @@ public class RingCombatManager
 
         // 收集范围内的所有怪物
         var targetsHit = new List<Monster>();
-        int monsterCount = 0;
         
         foreach (var character in location.characters)
         {
             if (character is not Monster monster)
                 continue;
 
-            monsterCount++;
-            
             // 跳过已死亡的怪物
             if (monster.Health <= 0)
                 continue;
@@ -192,20 +153,12 @@ public class RingCombatManager
             if (distanceSquared <= radiusSquared)
             {
                 targetsHit.Add(monster);
-                _monitor.Log($"Target found: {monster.Name}, Dist: {Math.Sqrt(distanceSquared):F1}/{attackRadius}", LogLevel.Trace);
             }
         }
 
-        if (monsterCount > 0 && targetsHit.Count == 0)
-        {
-             _monitor.Log($"Found {monsterCount} monsters but none in range ({attackRadius}).", LogLevel.Trace);
-        }
-
-        // 如果没有命中任何目标，不播放效果
+        // 如果没有命中任何目标，不播放效果，返回false
         if (targetsHit.Count == 0)
-            return;
-
-        _monitor.Log($"Attacking {targetsHit.Count} targets!", LogLevel.Debug);
+            return false;
 
         // 播放攻击音效
         PlayAttackSound(fusionData.WeaponType, location);
@@ -216,7 +169,8 @@ public class RingCombatManager
             DealDamageToMonster(player, monster, fusionData, playerCenter);
         }
 
-        _monitor.Log($"Aura hit {targetsHit.Count} targets", LogLevel.Trace);
+        // _monitor.Log($"Aura hit {targetsHit.Count} targets", LogLevel.Trace);
+        return true;
     }
 
     /// <summary>对单个怪物造成伤害</summary>
