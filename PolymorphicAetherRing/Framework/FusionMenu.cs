@@ -35,10 +35,10 @@ public class FusionMenu : IClickableMenu
 
     public FusionMenu(Item trinket, IModHelper helper, IMonitor monitor, ModConfig config)
         : base(
-            (Game1.uiViewport.Width - 832) / 2,
-            (Game1.uiViewport.Height - 576) / 2,
-            832,
-            576,
+            (Game1.uiViewport.Width - 1000) / 2,
+            (Game1.uiViewport.Height - 704) / 2,
+            1000,
+            704,
             showUpperRightCloseButton: true
         )
     {
@@ -73,7 +73,7 @@ public class FusionMenu : IClickableMenu
 
         // 2. 武器插槽 (上半部分居中)
         int slotX = this.xPositionOnScreen + (this.width - 64) / 2;
-        int slotY = this.yPositionOnScreen + 128; // 标题下方
+        int slotY = this.yPositionOnScreen + 192; // 标题下方 (128 -> 192)
         _weaponSlotBounds = new Rectangle(slotX, slotY, 64, 64);
 
         // 3. 熔铸按钮 (插槽下方)
@@ -114,7 +114,7 @@ public class FusionMenu : IClickableMenu
             b,
             title,
             Game1.dialogueFont,
-            new Vector2(xPositionOnScreen + (width - Game1.dialogueFont.MeasureString(title).X) / 2, yPositionOnScreen + 32),
+            new Vector2(xPositionOnScreen + (width - Game1.dialogueFont.MeasureString(title).X) / 2, yPositionOnScreen + 96),
             Game1.textColor
         );
 
@@ -122,9 +122,9 @@ public class FusionMenu : IClickableMenu
         if (_trinketTexture != null)
         {
             // 绘制在标题左侧
-            b.Draw(_trinketTexture, new Vector2(xPositionOnScreen + 64, yPositionOnScreen + 48), new Rectangle(0, 0, 16, 16), Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0.89f);
+            b.Draw(_trinketTexture, new Vector2(xPositionOnScreen + 64, yPositionOnScreen + 112), new Rectangle(0, 0, 16, 16), Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0.89f);
             // 绘制在标题右侧 (对称)
-            b.Draw(_trinketTexture, new Vector2(xPositionOnScreen + width - 64 - 64, yPositionOnScreen + 48), new Rectangle(0, 0, 16, 16), Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0.89f);
+            b.Draw(_trinketTexture, new Vector2(xPositionOnScreen + width - 64 - 64, yPositionOnScreen + 112), new Rectangle(0, 0, 16, 16), Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0.89f);
         }
 
         // 4. 绘制当前熔铸信息
@@ -135,7 +135,7 @@ public class FusionMenu : IClickableMenu
                 b,
                 info,
                 Game1.smallFont,
-                new Vector2(xPositionOnScreen + (width - Game1.smallFont.MeasureString(info).X) / 2, yPositionOnScreen + 80),
+                new Vector2(xPositionOnScreen + (width - Game1.smallFont.MeasureString(info).X) / 2, yPositionOnScreen + 144),
                 Color.LimeGreen
             );
         }
@@ -232,9 +232,55 @@ public class FusionMenu : IClickableMenu
     {
         base.receiveLeftClick(x, y, playSound);
 
-        // 1. 检查是否点击了库存中的物品
-        // 将点击后的物品状态赋值回玩家光标物品 (CRITICAL FIX: 否则物品会消失)
-        Game1.player.CursorSlotItem = _inventory.leftClick(x, y, Game1.player.CursorSlotItem, playSound);
+        bool handledInventoryClick = false;
+
+        // 1. 检查是否点击了库存中的物品 (拦截逻辑)
+        // 遍历库存槽位，看是否点击了某个位置
+        int clickedSlot = -1;
+        foreach (var c in _inventory.inventory)
+        {
+            if (c != null && c.containsPoint(x, y))
+            {
+                if (int.TryParse(c.name, out int slotNumber))
+                {
+                    clickedSlot = slotNumber;
+                    break;
+                }
+            }
+        }
+
+        // 如果点击了有效槽位，并且该位置有物品
+        if (clickedSlot != -1 && clickedSlot < Game1.player.Items.Count)
+        {
+            Item clickedItem = Game1.player.Items[clickedSlot];
+            
+            // 如果点击的是近战武器 -> 执行"一键装备/交换"逻辑
+            if (clickedItem is MeleeWeapon weapon)
+            {
+                // 1. 取出新武器
+                Game1.player.Items[clickedSlot] = null;
+
+                // 2. 如果当前槽里已有武器，把它放回被点击的格子里
+                if (_slottedWeapon != null)
+                {
+                    Game1.player.Items[clickedSlot] = _slottedWeapon;
+                }
+
+                // 3. 装备新武器
+                _slottedWeapon = weapon;
+                
+                Game1.playSound("stoneStep");
+                handledInventoryClick = true;
+                
+                _monitor.Log($"Quick-equipped weapon: {weapon.DisplayName}", LogLevel.Debug);
+            }
+        }
+
+        // 如果没有触发"一键装备" (例如点击了非武器物品，或者空位)，则执行默认库存行为
+        if (!handledInventoryClick)
+        {
+            Game1.player.CursorSlotItem = _inventory.leftClick(x, y, Game1.player.CursorSlotItem, playSound);
+        }
         
         // 2. 检查是否点击了武器插槽
         if (_weaponSlotBounds.Contains(x, y))
@@ -285,9 +331,22 @@ public class FusionMenu : IClickableMenu
         // 情况B: 手上没物品，插槽有物品
         else if (_slottedWeapon != null)
         {
-            Game1.player.CursorSlotItem = _slottedWeapon;
-            _slottedWeapon = null;
-            Game1.playSound("dwop");
+            // 尝试直接放回背包
+            var remainder = Game1.player.addItemToInventory(_slottedWeapon);
+            if (remainder == null)
+            {
+                // 成功放回
+                _slottedWeapon = null;
+                Game1.playSound("coin");
+            }
+            else
+            {
+                // 背包满了，原来的逻辑 (拿起)
+                Game1.player.CursorSlotItem = _slottedWeapon;
+                _slottedWeapon = null;
+                Game1.playSound("dwop");
+                // 简单提示一下，或者不提示也行，原版行为就是拿起
+            }
         }
     }
 
