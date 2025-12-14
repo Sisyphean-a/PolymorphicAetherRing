@@ -306,12 +306,12 @@ public class FusionMenu : IClickableMenu
                 
                 if (added == null) // 成功加入背包
                 {
-                    Game1.addHUDMessage(new HUDMessage(_helper.Translation.Get("menu.fusion.returned", new { weaponName = _currentFusion.WeaponName })));
+                    Game1.showGlobalMessage(_helper.Translation.Get("menu.fusion.returned", new { weaponName = _currentFusion.WeaponName }));
                 }
                 else // 背包已满，丢到地上
                 {
                     Game1.createItemDebris(oldWeapon, Game1.player.getStandingPosition(), -1);
-                    Game1.addHUDMessage(new HUDMessage(_helper.Translation.Get("menu.fusion.inventory_full", new { weaponName = _currentFusion.WeaponName })));
+                    Game1.showGlobalMessage(_helper.Translation.Get("menu.fusion.inventory_full", new { weaponName = _currentFusion.WeaponName }));
                 }
             }
             catch (Exception ex)
@@ -337,7 +337,7 @@ public class FusionMenu : IClickableMenu
         _slottedWeapon = null;
         
         // 5. 反馈
-        Game1.addHUDMessage(new HUDMessage(_helper.Translation.Get("menu.fusion.success")));
+        Game1.showGlobalMessage(_helper.Translation.Get("menu.fusion.success"));
     }
 
     public override void receiveRightClick(int x, int y, bool playSound = true)
