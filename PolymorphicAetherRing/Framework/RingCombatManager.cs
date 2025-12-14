@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Monsters;
+using StardewValley.Objects;
 
 namespace PolymorphicAetherRing.Framework;
 
@@ -34,12 +35,38 @@ public class RingCombatManager
     /// <summary>每帧更新</summary>
     public void Update()
     {
+        // 强制日志：证明Update正在运行
+        bool shouldLog = Game1.ticks % 60 == 0;
+        if (shouldLog)
+        {
+             // _monitor.Log($"[Debug] Combat Update Tick. Player: {Game1.player?.Name}, Free: {Context.IsPlayerFree}", LogLevel.Info);
+        }
+
         var player = Game1.player;
-        if (player == null || !Context.IsPlayerFree)
+        if (player == null) 
             return;
+
+        if (!Context.IsPlayerFree)
+        {
+            // if (shouldLog) _monitor.Log("[Debug] Player not free", LogLevel.Info);
+            return;
+        }
 
         // 检查玩家是否装备了我们的戒指
         var ring = GetEquippedAetherRing(player);
+        
+        // 详细调试：如果没找到戒指，打印当前戒指槽里是什么
+        if (ring == null && shouldLog)
+        {
+            string leftId = player.leftRing.Value?.QualifiedItemId ?? "null";
+            string rightId = player.rightRing.Value?.QualifiedItemId ?? "null";
+            // _monitor.Log($"[Debug] No Aether Ring found. Left: {leftId}, Right: {rightId}", LogLevel.Info);
+            
+            _cachedRing = null;
+            _cachedFusionData = null;
+            return;
+        }
+
         if (ring == null)
         {
             _cachedRing = null;
@@ -50,19 +77,29 @@ public class RingCombatManager
         // 如果戒指改变了，重新读取熔铸数据
         if (ring != _cachedRing)
         {
+            _monitor.Log($"[Debug] Ring equipped! Name: {ring.Name}, ItemId: {ring.QualifiedItemId}", LogLevel.Info);
             _cachedRing = ring;
             _cachedFusionData = FusedWeaponData.FromModData(ring);
             
             if (_cachedFusionData != null)
             {
                 _currentCooldownMs = _cachedFusionData.GetAttackIntervalMs();
-                _monitor.Log($"Loaded fusion data: {_cachedFusionData.WeaponName}, cooldown: {_currentCooldownMs}ms", LogLevel.Debug);
+                _monitor.Log($"[Debug] Loaded fusion data: {_cachedFusionData.WeaponName}, cooldown: {_currentCooldownMs}ms", LogLevel.Info);
+            }
+            else
+            {
+                _monitor.Log("[Debug] Fusion data is null or empty.", LogLevel.Warn);
             }
         }
-
+        
+        // ... (后续逻辑保持不变)
+        
         // 如果没有熔铸数据，不执行攻击
         if (_cachedFusionData == null || !_cachedFusionData.IsValid)
+        {
+            // if (shouldLog) _monitor.Log("[Debug] No valid fusion data.", LogLevel.Info);
             return;
+        }
 
         // 累计时间
         _timeSinceLastAttack += Game1.currentGameTime.ElapsedGameTime.TotalMilliseconds;
@@ -70,21 +107,54 @@ public class RingCombatManager
         // 检查冷却
         if (_timeSinceLastAttack >= _currentCooldownMs)
         {
+            _monitor.Log($"[Debug] Attack cooldown ready. Executing attack.", LogLevel.Trace);
             _timeSinceLastAttack = 0;
             ExecuteAuraAttack(player, _cachedFusionData);
         }
     }
 
-    /// <summary>获取玩家装备的以太戒指</summary>
+    /// <summary>获取玩家装备的以太戒指（支持组合戒指）</summary>
     private Item? GetEquippedAetherRing(Farmer player)
     {
         // 检查左戒指槽
-        if (player.leftRing.Value?.QualifiedItemId == ModEntry.QualifiedRingId)
-            return player.leftRing.Value;
-        
+        var leftFound = FindAetherRing(player.leftRing.Value);
+        if (leftFound != null) return leftFound;
+
         // 检查右戒指槽
-        if (player.rightRing.Value?.QualifiedItemId == ModEntry.QualifiedRingId)
-            return player.rightRing.Value;
+        var rightFound = FindAetherRing(player.rightRing.Value);
+        if (rightFound != null) return rightFound;
+        
+        // 调试日志：如果什么都没找到，但装备了东西
+        bool log = Game1.ticks % 120 == 0;
+        if (log && _cachedRing == null)
+        {
+            if (player.leftRing.Value != null) 
+                _monitor.Log($"[Debug] Left ring: {player.leftRing.Value.QualifiedItemId} ({player.leftRing.Value.GetType().Name})", LogLevel.Info);
+            if (player.rightRing.Value != null)
+                _monitor.Log($"[Debug] Right ring: {player.rightRing.Value.QualifiedItemId} ({player.rightRing.Value.GetType().Name})", LogLevel.Info);
+        }
+
+        return null;
+    }
+
+    /// <summary>递归查找以太戒指</summary>
+    private Item? FindAetherRing(StardewValley.Objects.Ring? ring)
+    {
+        if (ring == null) return null;
+        
+        // 1. 直接匹配
+        if (ring.QualifiedItemId == ModEntry.QualifiedRingId) 
+            return ring;
+            
+        // 2. 检查组合戒指
+        if (ring is StardewValley.Objects.CombinedRing combinedRing)
+        {
+            foreach (var childRing in combinedRing.combinedRings)
+            {
+                var found = FindAetherRing(childRing);
+                if (found != null) return found;
+            }
+        }
         
         return null;
     }
@@ -102,12 +172,15 @@ public class RingCombatManager
 
         // 收集范围内的所有怪物
         var targetsHit = new List<Monster>();
+        int monsterCount = 0;
         
         foreach (var character in location.characters)
         {
             if (character is not Monster monster)
                 continue;
 
+            monsterCount++;
+            
             // 跳过已死亡的怪物
             if (monster.Health <= 0)
                 continue;
@@ -119,12 +192,20 @@ public class RingCombatManager
             if (distanceSquared <= radiusSquared)
             {
                 targetsHit.Add(monster);
+                _monitor.Log($"Target found: {monster.Name}, Dist: {Math.Sqrt(distanceSquared):F1}/{attackRadius}", LogLevel.Trace);
             }
+        }
+
+        if (monsterCount > 0 && targetsHit.Count == 0)
+        {
+             _monitor.Log($"Found {monsterCount} monsters but none in range ({attackRadius}).", LogLevel.Trace);
         }
 
         // 如果没有命中任何目标，不播放效果
         if (targetsHit.Count == 0)
             return;
+
+        _monitor.Log($"Attacking {targetsHit.Count} targets!", LogLevel.Debug);
 
         // 播放攻击音效
         PlayAttackSound(fusionData.WeaponType, location);

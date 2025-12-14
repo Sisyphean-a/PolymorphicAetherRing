@@ -117,10 +117,17 @@ public class ModEntry : Mod
     /// <summary>每帧更新战斗逻辑</summary>
     private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
     {
-        if (!Context.IsWorldReady || !Context.IsPlayerFree)
+        if (!Context.IsWorldReady)
             return;
+
+        if (_combatManager == null)
+        {
+            // 防御性检查，理论上不应该发生
+            if (e.IsMultipleOf(60)) Monitor.Log("_combatManager is null despite OnSaveLoaded!", LogLevel.Error);
+            return;
+        }
             
-        _combatManager?.Update();
+        _combatManager.Update();
     }
 
     /// <summary>监听按键打开熔铸面板</summary>
