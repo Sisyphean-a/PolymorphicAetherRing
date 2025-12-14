@@ -109,7 +109,7 @@ public class FusionMenu : IClickableMenu
         );
 
         // 3. 绘制标题
-        string title = "以太熔铸";
+        string title = _helper.Translation.Get("menu.fusion.title");
         Utility.drawTextWithShadow(
             b,
             title,
@@ -130,7 +130,7 @@ public class FusionMenu : IClickableMenu
         // 4. 绘制当前熔铸信息
         if (_currentFusion != null && _currentFusion.IsValid)
         {
-            string info = $"当前熔铸: {_currentFusion.WeaponName}";
+            string info = _helper.Translation.Get("menu.fusion.current_fusion", new { weaponName = _currentFusion.WeaponName });
             Utility.drawTextWithShadow(
                 b,
                 info,
@@ -189,7 +189,7 @@ public class FusionMenu : IClickableMenu
             true
         );
 
-        string btnText = "开始熔铸";
+        string btnText = _helper.Translation.Get("menu.fusion.fuse_button");
         Utility.drawTextWithShadow(
             b,
             btnText,
@@ -279,7 +279,7 @@ public class FusionMenu : IClickableMenu
             {
                 // 不是武器，播放错误音效或提示
                 Game1.playSound("cancel");
-                Game1.showRedMessage("仅限近战武器");
+                Game1.showRedMessage(_helper.Translation.Get("menu.fusion.error.only_melee"));
             }
         }
         // 情况B: 手上没物品，插槽有物品
@@ -306,18 +306,18 @@ public class FusionMenu : IClickableMenu
                 
                 if (added == null) // 成功加入背包
                 {
-                    Game1.addHUDMessage(new HUDMessage($"已返还: {_currentFusion.WeaponName}"));
+                    Game1.addHUDMessage(new HUDMessage(_helper.Translation.Get("menu.fusion.returned", new { weaponName = _currentFusion.WeaponName })));
                 }
                 else // 背包已满，丢到地上
                 {
                     Game1.createItemDebris(oldWeapon, Game1.player.getStandingPosition(), -1);
-                    Game1.addHUDMessage(new HUDMessage($"背包已满，丢弃: {_currentFusion.WeaponName}"));
+                    Game1.addHUDMessage(new HUDMessage(_helper.Translation.Get("menu.fusion.inventory_full", new { weaponName = _currentFusion.WeaponName })));
                 }
             }
             catch (Exception ex)
             {
                 _monitor.Log($"Failed to return old weapon ({_currentFusion.WeaponName}): {ex}", LogLevel.Error);
-                Game1.showRedMessage("返还旧武器失败");
+                Game1.showRedMessage(_helper.Translation.Get("menu.fusion.error.return_failed"));
             }
         }
 
@@ -337,7 +337,7 @@ public class FusionMenu : IClickableMenu
         _slottedWeapon = null;
         
         // 5. 反馈
-        Game1.addHUDMessage(new HUDMessage("熔铸成功！"));
+        Game1.addHUDMessage(new HUDMessage(_helper.Translation.Get("menu.fusion.success")));
     }
 
     public override void receiveRightClick(int x, int y, bool playSound = true)

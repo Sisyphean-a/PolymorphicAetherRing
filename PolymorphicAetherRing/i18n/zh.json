@@ -1,0 +1,24 @@
+{
+  "config.combat_settings": "战斗设置",
+  "config.damage_multiplier": "伤害倍率",
+  "config.damage_multiplier.tooltip": "直接乘算光环造成的伤害。",
+  "config.range_multiplier": "范围倍率",
+  "config.range_multiplier.tooltip": "乘算攻击半径。",
+  "config.cooldown_multiplier": "冷却倍率",
+  "config.cooldown_multiplier.tooltip": "乘算攻击冷却时间（越低越快）。",
+  "config.fusion_settings": "熔铸设置",
+  "config.return_fused_weapon": "返还熔铸武器",
+  "config.return_fused_weapon.tooltip": "如果启用，当你熔铸新武器时，之前熔铸的武器将返还到你的背包中。",
+
+  "item.ring.name": "以太多态戒指",
+  "item.ring.description": "一个嗡嗡作响的神秘装置，似乎渴望吞噬武器的灵魂。",
+
+  "menu.fusion.title": "以太熔铸",
+  "menu.fusion.current_fusion": "当前熔铸: {{weaponName}}",
+  "menu.fusion.fuse_button": "开始熔铸",
+  "menu.fusion.error.only_melee": "仅限近战武器",
+  "menu.fusion.returned": "已返还: {{weaponName}}",
+  "menu.fusion.inventory_full": "背包已满，丢弃: {{weaponName}}",
+  "menu.fusion.error.return_failed": "返还旧武器失败",
+  "menu.fusion.success": "熔铸成功！"
+}

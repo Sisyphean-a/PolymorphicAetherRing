@@ -1,0 +1,24 @@
+{
+  "config.combat_settings": "戦闘設定",
+  "config.damage_multiplier": "ダメージ倍率",
+  "config.damage_multiplier.tooltip": "オーラのダメージを直接乗算します。",
+  "config.range_multiplier": "範囲倍率",
+  "config.range_multiplier.tooltip": "攻撃半径を乗算します。",
+  "config.cooldown_multiplier": "クールダウン倍率",
+  "config.cooldown_multiplier.tooltip": "攻撃のクールダウンを乗算します（低いほど速い）。",
+  "config.fusion_settings": "融合設定",
+  "config.return_fused_weapon": "融合武器の返還",
+  "config.return_fused_weapon.tooltip": "有効にすると、新しい武器を融合した際に、以前融合していた武器がインベントリに返還されます。",
+
+  "item.ring.name": "エーテル多態リング",
+  "item.ring.description": "武器の魂を渇望しているかのような、唸りを上げる神秘的な装置。",
+
+  "menu.fusion.title": "エーテル融合",
+  "menu.fusion.current_fusion": "現在の融合: {{weaponName}}",
+  "menu.fusion.fuse_button": "融合開始",
+  "menu.fusion.error.only_melee": "近接武器のみ",
+  "menu.fusion.returned": "返還: {{weaponName}}",
+  "menu.fusion.inventory_full": "インベントリ満杯、ドロップ: {{weaponName}}",
+  "menu.fusion.error.return_failed": "旧武器の返還に失敗しました",
+  "menu.fusion.success": "融合成功！"
+}

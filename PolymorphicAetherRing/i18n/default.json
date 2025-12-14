@@ -1,0 +1,24 @@
+{
+  "config.combat_settings": "Combat Settings",
+  "config.damage_multiplier": "Damage Multiplier",
+  "config.damage_multiplier.tooltip": "Directly multiplies the damage of the ring aura.",
+  "config.range_multiplier": "Range Multiplier",
+  "config.range_multiplier.tooltip": "Multiplies the attack radius.",
+  "config.cooldown_multiplier": "Cooldown Multiplier",
+  "config.cooldown_multiplier.tooltip": "Multiplies the attack cooldown (lower is faster).",
+  "config.fusion_settings": "Fusion Settings",
+  "config.return_fused_weapon": "Return Fused Weapon",
+  "config.return_fused_weapon.tooltip": "If true, the previously fused weapon will be returned to your inventory when you fuse a new one.",
+
+  "item.ring.name": "Polymorphic Aether Ring",
+  "item.ring.description": "A humming, mystical device that seems to hunger for the souls of weapons.",
+
+  "menu.fusion.title": "Aether Fusion",
+  "menu.fusion.current_fusion": "Current Fusion: {{weaponName}}",
+  "menu.fusion.fuse_button": "Fuse",
+  "menu.fusion.error.only_melee": "Melee weapons only",
+  "menu.fusion.returned": "Returned: {{weaponName}}",
+  "menu.fusion.inventory_full": "Inventory full, dropped: {{weaponName}}",
+  "menu.fusion.error.return_failed": "Failed to return old weapon",
+  "menu.fusion.success": "Fusion Successful!"
+}

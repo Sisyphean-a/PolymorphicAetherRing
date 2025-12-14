@@ -55,12 +55,12 @@ public class ModEntry : Mod
         );
 
         // 添加配置项
-        configMenu.AddSectionTitle(ModManifest, () => "Combat Settings");
+        configMenu.AddSectionTitle(ModManifest, () => Helper.Translation.Get("config.combat_settings"));
 
         configMenu.AddNumberOption(
             mod: ModManifest,
-            name: () => "Damage Multiplier",
-            tooltip: () => "Directly multiplies the damage of the ring aura.",
+            name: () => Helper.Translation.Get("config.damage_multiplier"),
+            tooltip: () => Helper.Translation.Get("config.damage_multiplier.tooltip"),
             getValue: () => Config.DamageMultiplier,
             setValue: value => Config.DamageMultiplier = value,
             min: 0.1f,
@@ -70,8 +70,8 @@ public class ModEntry : Mod
 
         configMenu.AddNumberOption(
             mod: ModManifest,
-            name: () => "Range Multiplier",
-            tooltip: () => "Multiplies the attack radius.",
+            name: () => Helper.Translation.Get("config.range_multiplier"),
+            tooltip: () => Helper.Translation.Get("config.range_multiplier.tooltip"),
             getValue: () => Config.RangeMultiplier,
             setValue: value => Config.RangeMultiplier = value,
             min: 0.5f,
@@ -81,8 +81,8 @@ public class ModEntry : Mod
         
         configMenu.AddNumberOption(
             mod: ModManifest,
-            name: () => "Cooldown Multiplier",
-            tooltip: () => "Multiplies the attack cooldown (lower is faster).",
+            name: () => Helper.Translation.Get("config.cooldown_multiplier"),
+            tooltip: () => Helper.Translation.Get("config.cooldown_multiplier.tooltip"),
             getValue: () => Config.CooldownMultiplier,
             setValue: value => Config.CooldownMultiplier = value,
             min: 0.1f,
@@ -90,12 +90,12 @@ public class ModEntry : Mod
             interval: 0.1f
         );
         
-        configMenu.AddSectionTitle(ModManifest, () => "Fusion Settings");
+        configMenu.AddSectionTitle(ModManifest, () => Helper.Translation.Get("config.fusion_settings"));
         
         configMenu.AddBoolOption(
             mod: ModManifest,
-            name: () => "Return Fused Weapon",
-            tooltip: () => "If true, the previously fused weapon will be returned to your inventory when you fuse a new one.",
+            name: () => Helper.Translation.Get("config.return_fused_weapon"),
+            tooltip: () => Helper.Translation.Get("config.return_fused_weapon.tooltip"),
             getValue: () => Config.ReturnFusedWeapon,
             setValue: value => Config.ReturnFusedWeapon = value
         );
@@ -115,8 +115,8 @@ public class ModEntry : Mod
                 var ringData = new StardewValley.GameData.Objects.ObjectData
                 {
                     Name = RingId,
-                    DisplayName = "以太多态戒指",
-                    Description = "一个嗡嗡作响的神秘装置，似乎渴望吞噬武器的灵魂。",
+                    DisplayName = Helper.Translation.Get("item.ring.name"),
+                    Description = Helper.Translation.Get("item.ring.description"),
                     Type = "Ring",
                     Category = StardewValley.Object.ringCategory,
                     Price = 5000,
@@ -135,8 +135,8 @@ public class ModEntry : Mod
             e.Edit(asset =>
             {
                 var data = asset.AsDictionary<string, string>();
-                data.Data["AetherRing_Name"] = "以太多态戒指";
-                data.Data["AetherRing_Description"] = "一个嗡嗡作响的神秘装置，似乎渴望吞噬武器的灵魂。";
+                data.Data["AetherRing_Name"] = Helper.Translation.Get("item.ring.name");
+                data.Data["AetherRing_Description"] = Helper.Translation.Get("item.ring.description");
             });
         }
     }
