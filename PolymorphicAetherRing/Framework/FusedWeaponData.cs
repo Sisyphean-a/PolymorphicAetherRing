@@ -11,6 +11,9 @@ public class FusedWeaponData
     
     /// <summary>武器ID</summary>
     public string WeaponId { get; set; } = string.Empty;
+
+    /// <summary>附魔列表 (类名)</summary>
+    public List<string> EnchantmentIds { get; set; } = new();
     
     /// <summary>武器名称</summary>
     public string WeaponName { get; set; } = string.Empty;
@@ -45,7 +48,7 @@ public class FusedWeaponData
     /// <summary>从武器对象提取数据</summary>
     public static FusedWeaponData FromWeapon(MeleeWeapon weapon)
     {
-        return new FusedWeaponData
+        var data = new FusedWeaponData
         {
             WeaponId = weapon.QualifiedItemId,
             WeaponName = weapon.DisplayName,
@@ -58,6 +61,15 @@ public class FusedWeaponData
             AreaOfEffect = weapon.addedAreaOfEffect.Value,
             WeaponType = (int)weapon.type.Value
         };
+
+        // 提取附魔
+        foreach (var enchantment in weapon.enchantments)
+        {
+            // 保存附魔的类名 (例如 "VampiricEnchantment")
+            data.EnchantmentIds.Add(enchantment.GetType().Name);
+        }
+
+        return data;
     }
 
     /// <summary>从物品的 modData 读取熔铸数据</summary>
@@ -88,6 +100,14 @@ public class FusedWeaponData
             data.AreaOfEffect = int.Parse(aoe);
         if (modData.TryGetValue(ModDataPrefix + "WeaponType", out var weaponType))
             data.WeaponType = int.Parse(weaponType);
+
+        if (modData.TryGetValue(ModDataPrefix + "EnchantmentIds", out var enchantments))
+        {
+            if (!string.IsNullOrEmpty(enchantments))
+            {
+                data.EnchantmentIds = enchantments.Split(',').ToList();
+            }
+        }
             
         return data;
     }
@@ -107,6 +127,16 @@ public class FusedWeaponData
         modData[ModDataPrefix + "Knockback"] = Knockback.ToString();
         modData[ModDataPrefix + "AreaOfEffect"] = AreaOfEffect.ToString();
         modData[ModDataPrefix + "WeaponType"] = WeaponType.ToString();
+        
+        if (EnchantmentIds.Count > 0)
+        {
+            modData[ModDataPrefix + "EnchantmentIds"] = string.Join(",", EnchantmentIds);
+        }
+        else
+        {
+            // 如果没有附魔，清理旧数据
+            modData.Remove(ModDataPrefix + "EnchantmentIds");
+        }
     }
 
     /// <summary>计算攻击冷却时间（毫秒）</summary>

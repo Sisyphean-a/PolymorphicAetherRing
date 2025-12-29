@@ -4,6 +4,9 @@ using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Menus;
 using StardewValley.Tools;
+using StardewValley.Enchantments;
+using System;
+using System.Linq;
 using PolymorphicAetherRing;
 
 namespace PolymorphicAetherRing.Framework;
@@ -360,6 +363,54 @@ public class FusionMenu : IClickableMenu
             try
             {
                 Item oldWeapon = ItemRegistry.Create(_currentFusion.WeaponId);
+                
+                // 恢复附魔
+                if (oldWeapon is Tool tool && _currentFusion.EnchantmentIds.Count > 0)
+                {
+                    foreach (var enchantName in _currentFusion.EnchantmentIds)
+                    {
+                        // 尝试查找类型
+                        Type? type = null;
+
+                        // 1. 尝试从 Stardew Valley 程序集查找 (原版附魔)
+                        var svAssembly = typeof(Game1).Assembly;
+                        type = svAssembly.GetTypes().FirstOrDefault(t => t.Name == enchantName && typeof(BaseEnchantment).IsAssignableFrom(t));
+                        
+                        // 2. 如果没找到，尝试从所有已加载程序集查找 (支持 Mod 附魔)
+                        if (type == null)
+                        {
+                             foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                             {
+                                 try 
+                                 {
+                                    type = asm.GetTypes().FirstOrDefault(t => t.Name == enchantName && typeof(BaseEnchantment).IsAssignableFrom(t));
+                                    if (type != null) break;
+                                 }
+                                 catch { /* 忽略无法读取的程序集 */ }
+                             }
+                        }
+                        
+                        if (type != null)
+                        {
+                             try 
+                             {
+                                if (Activator.CreateInstance(type) is BaseEnchantment enchantment)
+                                {
+                                    tool.enchantments.Add(enchantment);
+                                }
+                             }
+                             catch (Exception ex)
+                             { 
+                                _monitor.Log($"Failed to restore enchantment '{enchantName}': {ex.Message}", LogLevel.Warn);
+                             }
+                        }
+                        else
+                        {
+                             _monitor.Log($"Could not find enchantment type '{enchantName}'", LogLevel.Warn);
+                        }
+                    }
+                }
+
                 // 尝试给玩家
                 var added = Game1.player.addItemToInventory(oldWeapon);
                 
