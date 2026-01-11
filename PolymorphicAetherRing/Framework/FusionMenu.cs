@@ -38,10 +38,10 @@ public class FusionMenu : IClickableMenu
 
     public FusionMenu(Item trinket, IModHelper helper, IMonitor monitor, ModConfig config)
         : base(
-            (Game1.uiViewport.Width - 1000) / 2,
-            (Game1.uiViewport.Height - 704) / 2,
-            1000,
-            704,
+            (Game1.uiViewport.Width - Math.Min(1000, Game1.uiViewport.Width - 64)) / 2,
+            (Game1.uiViewport.Height - Math.Min(704, Game1.uiViewport.Height - 64)) / 2,
+            Math.Min(1000, Game1.uiViewport.Width - 64),
+            Math.Min(704, Game1.uiViewport.Height - 64),
             showUpperRightCloseButton: true
         )
     {
@@ -96,6 +96,24 @@ public class FusionMenu : IClickableMenu
         return item is MeleeWeapon;
     }
     
+    public override void gameWindowSizeChanged(Rectangle oldBounds, Rectangle newBounds)
+    {
+        base.gameWindowSizeChanged(oldBounds, newBounds);
+        
+        // 重新计算窗口大小 position
+        this.width = Math.Min(1000, newBounds.Width - 64);
+        this.height = Math.Min(704, newBounds.Height - 64);
+        
+        this.xPositionOnScreen = (newBounds.Width - this.width) / 2;
+        this.yPositionOnScreen = (newBounds.Height - this.height) / 2;
+        
+        // 刷新布局
+        InitializeLayout();
+        
+        // 刷新关闭按钮位置
+        initializeUpperRightCloseButton();
+    }
+
     public override void draw(SpriteBatch b)
     {
         // 1. 绘制黑色遮罩
