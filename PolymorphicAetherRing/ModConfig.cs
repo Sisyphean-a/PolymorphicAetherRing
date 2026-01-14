@@ -14,4 +14,7 @@ public class ModConfig
 
     /// <summary>熔铸时是否返还旧武器</summary>
     public bool ReturnFusedWeapon { get; set; } = false;
+
+    /// <summary>安卓端长按触发阈值（毫秒），默认500ms</summary>
+    public int AndroidLongPressMs { get; set; } = 500;
 }

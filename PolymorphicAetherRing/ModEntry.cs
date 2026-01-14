@@ -20,6 +20,15 @@ public class ModEntry : Mod
 
     /// <summary>配置项</summary>
     public ModConfig Config { get; private set; } = new();
+    
+    /// <summary>是否为安卓平台</summary>
+    private bool IsAndroid => Constants.TargetPlatform == GamePlatform.Android;
+    
+    /// <summary>安卓端长按计时器（ticks）</summary>
+    private int _longPressHoldTicks = 0;
+    
+    /// <summary>长按是否已触发（防止重复触发）</summary>
+    private bool _longPressTriggered = false;
 
     public override void Entry(IModHelper helper)
     {
@@ -32,6 +41,7 @@ public class ModEntry : Mod
         helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
         helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
         helper.Events.Input.ButtonPressed += OnButtonPressed;
+        helper.Events.Input.ButtonReleased += OnButtonReleased;
         
         Monitor.Log("Polymorphic Aether Ring mod loaded!", LogLevel.Info);
     }
@@ -98,6 +108,19 @@ public class ModEntry : Mod
             tooltip: () => Helper.Translation.Get("config.return_fused_weapon.tooltip"),
             getValue: () => Config.ReturnFusedWeapon,
             setValue: value => Config.ReturnFusedWeapon = value
+        );
+        
+        configMenu.AddSectionTitle(ModManifest, () => Helper.Translation.Get("config.android_settings"));
+        
+        configMenu.AddNumberOption(
+            mod: ModManifest,
+            name: () => Helper.Translation.Get("config.android_long_press_ms"),
+            tooltip: () => Helper.Translation.Get("config.android_long_press_ms.tooltip"),
+            getValue: () => Config.AndroidLongPressMs,
+            setValue: value => Config.AndroidLongPressMs = (int)value,
+            min: 200,
+            max: 1500,
+            interval: 50
         );
     }
 
@@ -235,12 +258,64 @@ public class ModEntry : Mod
         }
             
         _combatManager.Update();
+        
+        // 安卓端长按检测
+        if (IsAndroid && Context.IsPlayerFree)
+        {
+            UpdateAndroidLongPress();
+        }
+    }
+    
+    /// <summary>安卓端长按检测逻辑</summary>
+    private void UpdateAndroidLongPress()
+    {
+        // 检查是否按住触摸/左键
+        bool isHolding = Helper.Input.IsDown(SButton.MouseLeft);
+        
+        if (!isHolding)
+        {
+            _longPressHoldTicks = 0;
+            _longPressTriggered = false;
+            return;
+        }
+        
+        // 已触发则不再处理
+        if (_longPressTriggered)
+            return;
+        
+        // 检查是否持有戒指
+        var player = Game1.player;
+        var currentItem = player.CurrentItem;
+        if (currentItem == null || currentItem.QualifiedItemId != QualifiedRingId)
+        {
+            _longPressHoldTicks = 0;
+            return;
+        }
+        
+        // 累计计时
+        _longPressHoldTicks++;
+        
+        // 计算阈值（毫秒转tick，60 FPS）
+        int thresholdTicks = (int)(Config.AndroidLongPressMs / 1000.0f * 60);
+        
+        if (_longPressHoldTicks >= thresholdTicks)
+        {
+            // 触发菜单
+            _longPressTriggered = true;
+            Helper.Input.Suppress(SButton.MouseLeft);
+            Game1.activeClickableMenu = new MobileFusionMenu(currentItem, Helper, Monitor, Config);
+            Monitor.Log("Opened Mobile Fusion Menu (long press)", LogLevel.Debug);
+        }
     }
 
     /// <summary>监听按键打开熔铸面板</summary>
     private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
     {
         if (!Context.IsWorldReady || !Context.IsPlayerFree)
+            return;
+
+        // 安卓端：左键由长按逻辑处理，这里不处理
+        if (IsAndroid && e.Button == SButton.MouseLeft)
             return;
 
         // 检查是否按下左键或使用键
@@ -259,8 +334,18 @@ public class ModEntry : Mod
 
         // 拦截默认行为并打开熔铸菜单
         Helper.Input.Suppress(e.Button);
-        // 传递 Config
+        // PC端使用完整界面
         Game1.activeClickableMenu = new FusionMenu(currentItem, Helper, Monitor, Config);
         Monitor.Log("Opened Fusion Menu", LogLevel.Debug);
+    }
+    
+    /// <summary>监听按键释放（用于重置长按状态）</summary>
+    private void OnButtonReleased(object? sender, ButtonReleasedEventArgs e)
+    {
+        if (e.Button == SButton.MouseLeft)
+        {
+            _longPressHoldTicks = 0;
+            _longPressTriggered = false;
+        }
     }
 }

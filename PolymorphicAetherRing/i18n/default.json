@@ -9,10 +9,11 @@
   "config.fusion_settings": "Fusion Settings",
   "config.return_fused_weapon": "Return Fused Weapon",
   "config.return_fused_weapon.tooltip": "If true, the previously fused weapon will be returned to your inventory when you fuse a new one.",
-
+  "config.android_settings": "Android Settings",
+  "config.android_long_press_ms": "Long Press Duration (ms)",
+  "config.android_long_press_ms.tooltip": "How long to hold before opening fusion menu on Android.",
   "item.ring.name": "Polymorphic Aether Ring",
   "item.ring.description": "A humming, mystical device that seems to hunger for the souls of weapons.",
-
   "menu.fusion.title": "Aether Fusion",
   "menu.fusion.current_fusion": "Current Fusion: {{weaponName}}",
   "menu.fusion.fuse_button": "Fuse",
@@ -20,5 +21,6 @@
   "menu.fusion.returned": "Returned: {{weaponName}}",
   "menu.fusion.inventory_full": "Inventory full, dropped: {{weaponName}}",
   "menu.fusion.error.return_failed": "Failed to return old weapon",
-  "menu.fusion.success": "Fusion Successful!"
+  "menu.fusion.success": "Fusion Successful!",
+  "menu.fusion.no_weapons": "No weapons available"
 }

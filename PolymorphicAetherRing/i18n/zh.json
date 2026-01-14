@@ -9,10 +9,11 @@
   "config.fusion_settings": "熔铸设置",
   "config.return_fused_weapon": "返还熔铸武器",
   "config.return_fused_weapon.tooltip": "如果启用，当你熔铸新武器时，之前熔铸的武器将返还到你的背包中。",
-
+  "config.android_settings": "安卓设置",
+  "config.android_long_press_ms": "长按触发时间（毫秒）",
+  "config.android_long_press_ms.tooltip": "在安卓端，需要长按多久才能打开熔铸菜单。",
   "item.ring.name": "以太多态戒指",
   "item.ring.description": "一个嗡嗡作响的神秘装置，似乎渴望吞噬武器的灵魂。",
-
   "menu.fusion.title": "以太熔铸",
   "menu.fusion.current_fusion": "当前熔铸: {{weaponName}}",
   "menu.fusion.fuse_button": "开始熔铸",
@@ -20,5 +21,6 @@
   "menu.fusion.returned": "已返还: {{weaponName}}",
   "menu.fusion.inventory_full": "背包已满，丢弃: {{weaponName}}",
   "menu.fusion.error.return_failed": "返还旧武器失败",
-  "menu.fusion.success": "熔铸成功！"
+  "menu.fusion.success": "熔铸成功！",
+  "menu.fusion.no_weapons": "没有可熔铸的武器"
 }
