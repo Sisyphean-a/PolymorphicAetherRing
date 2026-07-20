@@ -23,6 +23,11 @@ public class ModEntry : Mod
     
     /// <summary>是否为安卓平台</summary>
     private bool IsAndroid => Constants.TargetPlatform == GamePlatform.Android;
+
+    /// <summary>当前视口是否无法容纳桌面熔铸界面</summary>
+    private bool UseCompactFusionMenu => IsAndroid
+        || Game1.uiViewport.Width < 1064
+        || Game1.uiViewport.Height < 768;
     
     /// <summary>安卓端长按计时器（ticks）</summary>
     private int _longPressHoldTicks = 0;
@@ -303,7 +308,7 @@ public class ModEntry : Mod
             // 触发菜单
             _longPressTriggered = true;
             Helper.Input.Suppress(SButton.MouseLeft);
-            Game1.activeClickableMenu = new MobileFusionMenu(currentItem, Helper, Monitor, Config);
+            Game1.activeClickableMenu = CreateFusionMenu(currentItem);
             Monitor.Log("Opened Mobile Fusion Menu (long press)", LogLevel.Debug);
         }
     }
@@ -332,11 +337,17 @@ public class ModEntry : Mod
         if (currentItem.QualifiedItemId != QualifiedRingId)
             return;
 
-        // 拦截默认行为并打开熔铸菜单
+        // 拦截默认行为并按视口大小选择合适的熔铸界面
         Helper.Input.Suppress(e.Button);
-        // PC端使用完整界面
-        Game1.activeClickableMenu = new FusionMenu(currentItem, Helper, Monitor, Config);
+        Game1.activeClickableMenu = CreateFusionMenu(currentItem);
         Monitor.Log("Opened Fusion Menu", LogLevel.Debug);
+    }
+
+    private IClickableMenu CreateFusionMenu(Item currentItem)
+    {
+        return UseCompactFusionMenu
+            ? new MobileFusionMenu(currentItem, Helper, Monitor, Config)
+            : new FusionMenu(currentItem, Helper, Monitor, Config);
     }
     
     /// <summary>监听按键释放（用于重置长按状态）</summary>

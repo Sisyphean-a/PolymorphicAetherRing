@@ -45,6 +45,18 @@ public class FusedWeaponData
     /// <summary>是否有有效的熔铸数据</summary>
     public bool IsValid => !string.IsNullOrEmpty(WeaponId);
 
+    /// <summary>获取熔铸数据的稳定签名</summary>
+    public static string GetModDataSignature(Item item)
+    {
+        return string.Join(
+            "\u001F",
+            item.modData
+                .SelectMany(page => page)
+                .Where(pair => pair.Key.StartsWith(ModDataPrefix, StringComparison.Ordinal))
+                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                .Select(pair => $"{pair.Key.Length}:{pair.Key}{pair.Value.Length}:{pair.Value}"));
+    }
+
     /// <summary>从武器对象提取数据</summary>
     public static FusedWeaponData FromWeapon(MeleeWeapon weapon)
     {

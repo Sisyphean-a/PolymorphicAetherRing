@@ -23,8 +23,8 @@ public class RingCombatManager
     /// <summary>缓存的熔铸数据</summary>
     private FusedWeaponData? _cachedFusionData;
     
-    /// <summary>缓存的戒指引用</summary>
-    private Item? _cachedRing;
+    /// <summary>缓存的熔铸数据签名</summary>
+    private string? _cachedFusionSignature;
 
     public RingCombatManager(IModHelper helper, IMonitor monitor, ModConfig config)
     {
@@ -46,16 +46,17 @@ public class RingCombatManager
         var ring = GetEquippedAetherRing(player);
         if (ring == null)
         {
-            _cachedRing = null;
             _cachedFusionData = null;
+            _cachedFusionSignature = null;
             return;
         }
 
-        // 如果戒指改变了，重新读取熔铸数据
-        if (ring != _cachedRing)
+        // 按熔铸数据判断是否变化，不能依赖物品对象引用。
+        // 组合戒指等场景可能每帧返回不同实例，但其熔铸数据并未改变。
+        var fusionSignature = FusedWeaponData.GetModDataSignature(ring);
+        if (!string.Equals(fusionSignature, _cachedFusionSignature, StringComparison.Ordinal))
         {
-            // _monitor.Log($"[Debug] Ring equipped! Name: {ring.Name}", LogLevel.Trace);
-            _cachedRing = ring;
+            _cachedFusionSignature = fusionSignature;
             _cachedFusionData = FusedWeaponData.FromModData(ring);
             
             if (_cachedFusionData != null)
