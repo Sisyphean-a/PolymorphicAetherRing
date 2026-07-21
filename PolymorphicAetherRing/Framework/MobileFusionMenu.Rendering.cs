@@ -54,9 +54,7 @@ public partial class MobileFusionMenu
 
         int textX = _closeButtonBounds.Right + 8;
         int availableWidth = _leftPanelBounds.Right - textX - 8;
-        string text = TruncateText(
-            _helper.Translation.Get("menu.fusion.current_fusion", new { weaponName = _currentFusion.WeaponName }),
-            availableWidth);
+        string text = TruncateText(_currentFusion.WeaponName, availableWidth);
         if (string.IsNullOrEmpty(text))
             return;
 
@@ -79,7 +77,7 @@ public partial class MobileFusionMenu
             return;
         }
 
-        string hint = "?";
+        string hint = "+";
         Vector2 hintSize = Game1.dialogueFont.MeasureString(hint);
         Vector2 hintPosition = new(
             _weaponSlotBounds.X + (_weaponSlotBounds.Width - hintSize.X) / 2,
@@ -96,12 +94,15 @@ public partial class MobileFusionMenu
             _fuseButtonBounds.X, _fuseButtonBounds.Y, _fuseButtonBounds.Width, _fuseButtonBounds.Height,
             color, 1f, true);
 
-        string label = _helper.Translation.Get("menu.fusion.fuse_button");
-        Vector2 labelSize = Game1.dialogueFont.MeasureString(label);
+        string label = TruncateText(
+            _helper.Translation.Get("menu.fusion.fuse_button"),
+            Game1.smallFont,
+            _fuseButtonBounds.Width - 16);
+        Vector2 labelSize = Game1.smallFont.MeasureString(label);
         Vector2 position = new(
             _fuseButtonBounds.X + (_fuseButtonBounds.Width - labelSize.X) / 2,
             _fuseButtonBounds.Y + (_fuseButtonBounds.Height - labelSize.Y) / 2);
-        Utility.drawTextWithShadow(spriteBatch, label, Game1.dialogueFont, position, canFuse ? Game1.textColor : Color.DarkGray);
+        Utility.drawTextWithShadow(spriteBatch, label, Game1.smallFont, position, canFuse ? Game1.textColor : Color.DarkGray);
     }
 
     private void DrawRightPanel(SpriteBatch spriteBatch)
@@ -123,7 +124,11 @@ public partial class MobileFusionMenu
         IClickableMenu.drawTextureBox(
             spriteBatch, Game1.menuTexture, new Rectangle(0, 256, 60, 60),
             bounds.X, bounds.Y, bounds.Width, bounds.Height, Color.White, 1f, false);
-        Utility.drawTextWithShadow(spriteBatch, label, Game1.smallFont, new Vector2(bounds.X + 10, bounds.Y + 8), Game1.textColor);
+        Vector2 labelSize = Game1.smallFont.MeasureString(label);
+        Vector2 position = new(
+            bounds.X + (bounds.Width - labelSize.X) / 2,
+            bounds.Y + (bounds.Height - labelSize.Y) / 2);
+        Utility.drawTextWithShadow(spriteBatch, label, Game1.smallFont, position, Game1.textColor);
     }
 
     private void DrawWeaponList(SpriteBatch spriteBatch)
@@ -167,14 +172,19 @@ public partial class MobileFusionMenu
 
     private static string TruncateText(string text, int availableWidth)
     {
+        return TruncateText(text, Game1.smallFont, availableWidth);
+    }
+
+    private static string TruncateText(string text, SpriteFont font, int availableWidth)
+    {
         if (availableWidth <= 0 || string.IsNullOrEmpty(text))
             return string.Empty;
 
         const string ellipsis = "...";
-        if (Game1.smallFont.MeasureString(text).X <= availableWidth)
+        if (font.MeasureString(text).X <= availableWidth)
             return text;
 
-        while (text.Length > 0 && Game1.smallFont.MeasureString(text + ellipsis).X > availableWidth)
+        while (text.Length > 0 && font.MeasureString(text + ellipsis).X > availableWidth)
             text = text[..^1];
 
         return text.Length == 0 ? string.Empty : text + ellipsis;

@@ -90,7 +90,7 @@ public partial class MobileFusionMenu : IClickableMenu
     private void LayoutPanels()
     {
         int padding = Math.Min(16, Math.Max(6, height / 25));
-        int gap = Math.Min(32, Math.Max(8, width / 20));
+        int gap = Math.Min(16, Math.Max(6, width / 40));
         int panelWidth = (width - padding * 2 - gap) / 2;
         int panelHeight = height - padding * 2;
 
@@ -101,12 +101,12 @@ public partial class MobileFusionMenu : IClickableMenu
     private void LayoutFusionControls()
     {
         int padding = Math.Max(8, _leftPanelBounds.Height / 24);
-        int closeSize = Math.Clamp(_leftPanelBounds.Height / 5, 40, 64);
-        int buttonHeight = Math.Clamp(_leftPanelBounds.Height / 4, 44, 64);
+        int closeSize = Math.Clamp(_leftPanelBounds.Height / 6, 40, 56);
+        int buttonHeight = Math.Clamp(_leftPanelBounds.Height / 5, 44, 56);
         int buttonWidth = Math.Min(160, _leftPanelBounds.Width - padding * 2);
         int buttonTop = _leftPanelBounds.Bottom - buttonHeight - padding;
         int contentTop = _leftPanelBounds.Top + closeSize + padding;
-        int slotSize = Math.Max(24, Math.Min(80, buttonTop - contentTop - padding));
+        int slotSize = Math.Max(24, Math.Min(72, buttonTop - contentTop - padding));
 
         _closeButtonBounds = new Rectangle(_leftPanelBounds.X, _leftPanelBounds.Y, closeSize, closeSize);
         _weaponSlotBounds = new Rectangle(

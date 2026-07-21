@@ -34,8 +34,6 @@ public class FusionMenu : IClickableMenu
     
     private readonly string _hoverText = "";
 
-    private Texture2D _trinketTexture;
-
     public FusionMenu(Item trinket, IModHelper helper, IMonitor monitor, ModConfig config)
         : base(
             (Game1.uiViewport.Width - Math.Min(1000, Game1.uiViewport.Width - 64)) / 2,
@@ -49,9 +47,6 @@ public class FusionMenu : IClickableMenu
         _helper = helper;
         _monitor = monitor;
         _config = config;
-        
-        // 加载自定义纹理
-        _trinketTexture = _helper.ModContent.Load<Texture2D>("assets/trinket.png");
         
         // 读取当前熔铸状态
         _currentFusion = FusedWeaponData.FromModData(trinket);
@@ -67,7 +62,7 @@ public class FusionMenu : IClickableMenu
         // InventoryMenu 通常宽为 12 * 64 + 边距
         _inventory = new InventoryMenu(
             this.xPositionOnScreen + (this.width - (12 * 64)) / 2, // 居中
-            this.yPositionOnScreen + this.height - (3 * 64) - 64,  // 底部留出空间
+            this.yPositionOnScreen + this.height - (3 * 64) - 80,  // 底部留出空间
             playerInventory: true,
             highlightMethod: HighlightWeapons, // 只高亮武器
             capacity: 36,
@@ -75,16 +70,17 @@ public class FusionMenu : IClickableMenu
         );
 
         // 2. 武器插槽 (上半部分居中)
-        int slotX = this.xPositionOnScreen + (this.width - 64) / 2;
-        int slotY = this.yPositionOnScreen + 192; // 标题下方 (128 -> 192)
-        _weaponSlotBounds = new Rectangle(slotX, slotY, 64, 64);
+        const int slotSize = 96;
+        int slotX = this.xPositionOnScreen + (this.width - slotSize) / 2;
+        int slotY = this.yPositionOnScreen + 170;
+        _weaponSlotBounds = new Rectangle(slotX, slotY, slotSize, slotSize);
 
         // 3. 熔铸按钮 (插槽下方)
-        int btnWidth = 180;
+        int btnWidth = 220;
         int btnHeight = 64;
         _fuseButtonBounds = new Rectangle(
             this.xPositionOnScreen + (this.width - btnWidth) / 2,
-            slotY + 64 + 32, // 插槽下方 32px
+            slotY + slotSize + 16,
             btnWidth,
             btnHeight
         );
@@ -129,26 +125,7 @@ public class FusionMenu : IClickableMenu
             drawOnlyBox: true
         );
 
-        // 3. 绘制标题
-        string title = _helper.Translation.Get("menu.fusion.title");
-        Utility.drawTextWithShadow(
-            b,
-            title,
-            Game1.dialogueFont,
-            new Vector2(xPositionOnScreen + (width - Game1.dialogueFont.MeasureString(title).X) / 2, yPositionOnScreen + 96),
-            Game1.textColor
-        );
-
-        // 3.1 绘制自定义饰品图标 (装饰)
-        if (_trinketTexture != null)
-        {
-            // 绘制在标题左侧
-            b.Draw(_trinketTexture, new Vector2(xPositionOnScreen + 64, yPositionOnScreen + 112), new Rectangle(0, 0, 16, 16), Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0.89f);
-            // 绘制在标题右侧 (对称)
-            b.Draw(_trinketTexture, new Vector2(xPositionOnScreen + width - 64 - 64, yPositionOnScreen + 112), new Rectangle(0, 0, 16, 16), Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 0.89f);
-        }
-
-        // 4. 绘制当前熔铸信息
+        // 3. 绘制当前熔铸信息
         if (_currentFusion != null && _currentFusion.IsValid)
         {
             string info = _helper.Translation.Get("menu.fusion.current_fusion", new { weaponName = _currentFusion.WeaponName });
@@ -156,12 +133,12 @@ public class FusionMenu : IClickableMenu
                 b,
                 info,
                 Game1.smallFont,
-                new Vector2(xPositionOnScreen + (width - Game1.smallFont.MeasureString(info).X) / 2, yPositionOnScreen + 144),
-                Color.LimeGreen
+                new Vector2(xPositionOnScreen + (width - Game1.smallFont.MeasureString(info).X) / 2, yPositionOnScreen + 120),
+                Color.White
             );
         }
 
-        // 5. 绘制武器插槽
+        // 4. 绘制武器插槽
         // 背景 (使用 drawTextureBox 替代 drawKibbleRect)
         IClickableMenu.drawTextureBox(
             b,
@@ -179,11 +156,20 @@ public class FusionMenu : IClickableMenu
         // 如果有物品，绘制物品
         if (_slottedWeapon != null)
         {
-            _slottedWeapon.drawInMenu(b, new Vector2(_weaponSlotBounds.X, _weaponSlotBounds.Y), 1f);
+            float weaponScale = Math.Min(1.25f, (_weaponSlotBounds.Width - 16) / 64f);
+            Vector2 weaponPosition = new(
+                _weaponSlotBounds.X + (_weaponSlotBounds.Width - 64 * weaponScale) / 2,
+                _weaponSlotBounds.Y + (_weaponSlotBounds.Height - 64 * weaponScale) / 2);
+            _slottedWeapon.drawInMenu(b, weaponPosition, weaponScale);
         }
         else
         {
-             // 提示文本或空槽视觉效果 (可选)
+            string hint = "+";
+            Vector2 hintSize = Game1.dialogueFont.MeasureString(hint);
+            Vector2 hintPosition = new(
+                _weaponSlotBounds.X + (_weaponSlotBounds.Width - hintSize.X) / 2,
+                _weaponSlotBounds.Y + (_weaponSlotBounds.Height - hintSize.Y) / 2);
+            Utility.drawTextWithShadow(b, hint, Game1.dialogueFont, hintPosition, Color.Gray);
         }
 
         // 插槽高亮
@@ -192,7 +178,7 @@ public class FusionMenu : IClickableMenu
             IClickableMenu.drawTextureBox(b, Game1.mouseCursors, new Rectangle(375, 357, 3, 3), _weaponSlotBounds.X, _weaponSlotBounds.Y, _weaponSlotBounds.Width, _weaponSlotBounds.Height, Color.White, 4f, false);
         }
 
-        // 6. 绘制熔铸按钮
+        // 5. 绘制熔铸按钮
         bool canFuse = _slottedWeapon != null;
         var btnColor = canFuse ? (_hoveringFuseButton ? Color.Wheat : Color.White) : Color.Gray;
         
@@ -211,25 +197,20 @@ public class FusionMenu : IClickableMenu
         );
 
         string btnText = _helper.Translation.Get("menu.fusion.fuse_button");
-        Utility.drawTextWithShadow(
-            b,
-            btnText,
-            Game1.dialogueFont,
-            new Vector2(
-                _fuseButtonBounds.X + (_fuseButtonBounds.Width - Game1.dialogueFont.MeasureString(btnText).X) / 2,
-                _fuseButtonBounds.Y + (_fuseButtonBounds.Height - Game1.dialogueFont.MeasureString(btnText).Y) / 2 + 4 
-            ),
-            canFuse ? Game1.textColor : Color.DarkGray
-        );
+        Vector2 buttonTextPosition = new(
+            _fuseButtonBounds.X + (_fuseButtonBounds.Width - Game1.dialogueFont.MeasureString(btnText).X) / 2,
+            _fuseButtonBounds.Y + (_fuseButtonBounds.Height - Game1.dialogueFont.MeasureString(btnText).Y) / 2 + 4);
+        b.DrawString(Game1.dialogueFont, btnText, buttonTextPosition + new Vector2(2f, 2f), Color.Black);
+        b.DrawString(Game1.dialogueFont, btnText, buttonTextPosition, Color.White);
 
-        // 7. 绘制玩家库存
+        // 6. 绘制玩家库存
         _inventory.draw(b);
 
-        // 8. 绘制鼠标拖拽的物品
+        // 7. 绘制鼠标拖拽的物品
         base.draw(b); // 绘制关闭按钮
         drawMouse(b);
         
-        // 9. 悬浮提示 (Tooltip)
+        // 8. 悬浮提示 (Tooltip)
         if (_hoverText.Length > 0)
         {
             IClickableMenu.drawHoverText(b, _hoverText, Game1.smallFont);

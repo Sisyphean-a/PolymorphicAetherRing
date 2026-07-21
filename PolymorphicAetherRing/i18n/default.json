@@ -14,7 +14,6 @@
   "config.android_long_press_ms.tooltip": "How long to hold before opening fusion menu on Android.",
   "item.ring.name": "Polymorphic Aether Ring",
   "item.ring.description": "A humming, mystical device that seems to hunger for the souls of weapons.",
-  "menu.fusion.title": "Aether Fusion",
   "menu.fusion.current_fusion": "Current Fusion: {{weaponName}}",
   "menu.fusion.fuse_button": "Fuse",
   "menu.fusion.error.only_melee": "Melee weapons only",

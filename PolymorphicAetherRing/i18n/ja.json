@@ -13,7 +13,6 @@
   "item.ring.name": "エーテル多態リング",
   "item.ring.description": "武器の魂を渇望しているかのような、唸りを上げる神秘的な装置。",
 
-  "menu.fusion.title": "エーテル融合",
   "menu.fusion.current_fusion": "現在の融合: {{weaponName}}",
   "menu.fusion.fuse_button": "融合開始",
   "menu.fusion.error.only_melee": "近接武器のみ",

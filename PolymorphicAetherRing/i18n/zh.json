@@ -14,7 +14,6 @@
   "config.android_long_press_ms.tooltip": "在安卓端，需要长按多久才能打开熔铸菜单。",
   "item.ring.name": "以太多态戒指",
   "item.ring.description": "一个嗡嗡作响的神秘装置，似乎渴望吞噬武器的灵魂。",
-  "menu.fusion.title": "以太熔铸",
   "menu.fusion.current_fusion": "当前熔铸: {{weaponName}}",
   "menu.fusion.fuse_button": "开始熔铸",
   "menu.fusion.error.only_melee": "仅限近战武器",
