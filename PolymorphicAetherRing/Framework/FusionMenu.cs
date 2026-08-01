@@ -4,9 +4,7 @@ using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Menus;
 using StardewValley.Tools;
-using StardewValley.Enchantments;
 using System;
-using System.Linq;
 using PolymorphicAetherRing;
 
 namespace PolymorphicAetherRing.Framework;
@@ -354,99 +352,103 @@ public class FusionMenu : IClickableMenu
 
     private void PerformFusion()
     {
-        if (_slottedWeapon == null) return;
+        if (_slottedWeapon == null)
+            return;
 
-        // 0. 检查是否需要返还旧武器
-        if (_config.ReturnFusedWeapon && _currentFusion != null && _currentFusion.IsValid)
+        FusedWeaponData fusionData;
+        FusedWeaponModDataUpdate pendingUpdate;
+        try
         {
-            try
-            {
-                Item oldWeapon = ItemRegistry.Create(_currentFusion.WeaponId);
-                
-                // 恢复附魔
-                if (oldWeapon is Tool tool && _currentFusion.EnchantmentIds.Count > 0)
-                {
-                    foreach (var enchantName in _currentFusion.EnchantmentIds)
-                    {
-                        // 尝试查找类型
-                        Type? type = null;
-
-                        // 1. 尝试从 Stardew Valley 程序集查找 (原版附魔)
-                        var svAssembly = typeof(Game1).Assembly;
-                        type = svAssembly.GetTypes().FirstOrDefault(t => t.Name == enchantName && typeof(BaseEnchantment).IsAssignableFrom(t));
-                        
-                        // 2. 如果没找到，尝试从所有已加载程序集查找 (支持 Mod 附魔)
-                        if (type == null)
-                        {
-                             foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-                             {
-                                 try 
-                                 {
-                                    type = asm.GetTypes().FirstOrDefault(t => t.Name == enchantName && typeof(BaseEnchantment).IsAssignableFrom(t));
-                                    if (type != null) break;
-                                 }
-                                 catch { /* 忽略无法读取的程序集 */ }
-                             }
-                        }
-                        
-                        if (type != null)
-                        {
-                             try 
-                             {
-                                if (Activator.CreateInstance(type) is BaseEnchantment enchantment)
-                                {
-                                    tool.enchantments.Add(enchantment);
-                                }
-                             }
-                             catch (Exception ex)
-                             { 
-                                _monitor.Log($"Failed to restore enchantment '{enchantName}': {ex.Message}", LogLevel.Warn);
-                             }
-                        }
-                        else
-                        {
-                             _monitor.Log($"Could not find enchantment type '{enchantName}'", LogLevel.Warn);
-                        }
-                    }
-                }
-
-                // 尝试给玩家
-                var added = Game1.player.addItemToInventory(oldWeapon);
-                
-                if (added == null) // 成功加入背包
-                {
-                    Game1.showGlobalMessage(_helper.Translation.Get("menu.fusion.returned", new { weaponName = _currentFusion.WeaponName }));
-                }
-                else // 背包已满，丢到地上
-                {
-                    Game1.createItemDebris(oldWeapon, Game1.player.getStandingPosition(), -1);
-                    Game1.showGlobalMessage(_helper.Translation.Get("menu.fusion.inventory_full", new { weaponName = _currentFusion.WeaponName }));
-                }
-            }
-            catch (Exception ex)
-            {
-                _monitor.Log($"Failed to return old weapon ({_currentFusion.WeaponName}): {ex}", LogLevel.Error);
-                Game1.showRedMessage(_helper.Translation.Get("menu.fusion.error.return_failed"));
-            }
+            fusionData = FusedWeaponData.FromWeapon(_slottedWeapon);
+            pendingUpdate = fusionData.PrepareSave();
+        }
+        catch (Exception exception)
+        {
+            _monitor.Log($"Failed to prepare fused weapon data ({_slottedWeapon.DisplayName}): {exception}", LogLevel.Error);
+            Game1.showRedMessage(_helper.Translation.Get("menu.fusion.error.save_failed"));
+            return;
         }
 
-        // 1. 提取数据
-        var fusionData = FusedWeaponData.FromWeapon(_slottedWeapon);
-        
-        // 2. 保存进饰品
-        fusionData.SaveToModData(_trinket);
-        _currentFusion = fusionData;
+        if (!TryCreateCurrentFusionWeapon(out MeleeWeapon? oldWeapon, out FusedWeaponData? oldFusion))
+            return;
 
-        // 3. 特效与音效
+        try
+        {
+            pendingUpdate.ApplyTo(_trinket);
+        }
+        catch (Exception exception)
+        {
+            _monitor.Log($"Failed to save fused weapon data ({fusionData.WeaponName}): {exception}", LogLevel.Error);
+            Game1.showRedMessage(_helper.Translation.Get("menu.fusion.error.save_failed"));
+            return;
+        }
+
+        _currentFusion = fusionData;
+        _slottedWeapon = null;
+        if (oldWeapon != null && oldFusion != null)
+            DeliverReturnedWeapon(oldWeapon, oldFusion);
+
         Game1.playSound("furnace");
         Game1.playSound("powerup");
         _monitor.Log($"Fused: {fusionData.WeaponName}", LogLevel.Info);
-        
-        // 4. 消耗武器 (设为null，不返还给 cursor)
-        _slottedWeapon = null;
-        
-        // 5. 反馈
         Game1.showGlobalMessage(_helper.Translation.Get("menu.fusion.success"));
+    }
+
+    /// <summary>
+    /// Guarantee: 旧武器未能完整重建时返回 false，调用方不会覆盖饰品中的旧熔铸数据。
+    /// </summary>
+    private bool TryCreateCurrentFusionWeapon(
+        out MeleeWeapon? oldWeapon,
+        out FusedWeaponData? oldFusion)
+    {
+        oldWeapon = null;
+        oldFusion = null;
+        if (!_config.ReturnFusedWeapon || _currentFusion is not { IsValid: true } currentFusion)
+            return true;
+
+        try
+        {
+            oldWeapon = FusedWeaponRestorer.CreateWeapon(currentFusion);
+            oldFusion = currentFusion;
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _monitor.Log($"Failed to return old weapon ({currentFusion.WeaponName}): {exception}", LogLevel.Error);
+            Game1.showRedMessage(_helper.Translation.Get("menu.fusion.error.return_failed"));
+            return false;
+        }
+    }
+
+    private void DeliverReturnedWeapon(MeleeWeapon weapon, FusedWeaponData sourceData)
+    {
+        Item? remainder = Game1.player.addItemToInventory(weapon);
+        if (remainder == null)
+        {
+            Game1.showGlobalMessage(_helper.Translation.Get(
+                "menu.fusion.returned",
+                new { weaponName = sourceData.WeaponName }));
+        }
+        else
+        {
+            Game1.createItemDebris(remainder, Game1.player.getStandingPosition(), -1);
+            Game1.showGlobalMessage(_helper.Translation.Get(
+                "menu.fusion.inventory_full",
+                new { weaponName = sourceData.WeaponName }));
+        }
+
+        ShowLegacyEnchantmentWarningIfNeeded(sourceData);
+    }
+
+    private void ShowLegacyEnchantmentWarningIfNeeded(FusedWeaponData sourceData)
+    {
+        if (!sourceData.HasLegacyEnchantmentData)
+            return;
+
+        _monitor.Log(
+            $"Returned legacy fused weapon '{sourceData.WeaponName}' at known enchantment level 1; the old data did not store original levels.",
+            LogLevel.Warn);
+        Game1.showRedMessage(_helper.Translation.Get("menu.fusion.warning.legacy_enchantment_levels"));
     }
 
     public override void receiveRightClick(int x, int y, bool playSound = true)

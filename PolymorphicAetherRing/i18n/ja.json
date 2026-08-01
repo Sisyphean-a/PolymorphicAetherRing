@@ -19,5 +19,7 @@
   "menu.fusion.returned": "返還: {{weaponName}}",
   "menu.fusion.inventory_full": "インベントリ満杯、ドロップ: {{weaponName}}",
   "menu.fusion.error.return_failed": "旧武器の返還に失敗しました",
+  "menu.fusion.error.save_failed": "新しい融合武器の保存に失敗しました",
+  "menu.fusion.warning.legacy_enchantment_levels": "この武器は旧バージョンで融合されたため、元の鍛造レベルは保存されておらず、レベル1としてのみ復元できます。",
   "menu.fusion.success": "融合成功！"
 }

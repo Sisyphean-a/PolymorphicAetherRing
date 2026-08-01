@@ -1,6 +1,7 @@
-﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolymorphicAetherRing", "PolymorphicAetherRing\PolymorphicAetherRing.csproj", "{4FE8F5A7-0B32-4E0E-804E-9DBB32FA3F03}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolymorphicAetherRing.Tests", "PolymorphicAetherRing.Tests\PolymorphicAetherRing.Tests.csproj", "{0E6D2517-4F3D-444D-B7D3-BDE46DE0FEAD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -12,5 +13,9 @@ Global
 		{4FE8F5A7-0B32-4E0E-804E-9DBB32FA3F03}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4FE8F5A7-0B32-4E0E-804E-9DBB32FA3F03}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4FE8F5A7-0B32-4E0E-804E-9DBB32FA3F03}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0E6D2517-4F3D-444D-B7D3-BDE46DE0FEAD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0E6D2517-4F3D-444D-B7D3-BDE46DE0FEAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0E6D2517-4F3D-444D-B7D3-BDE46DE0FEAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0E6D2517-4F3D-444D-B7D3-BDE46DE0FEAD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -6,6 +6,6 @@
 
 ## 验证
 
-- 静态验证命令是 `dotnet build PolymorphicAetherRing.sln`。
-- 构建会通过 Stardew ModBuildConfig 生成发布压缩包，并可能把模组复制到本机 Stardew Valley 的 `Mods` 目录；运行前应知晓这个副作用。
-- 当前没有自动化测试项目。编译成功不能替代游戏内的菜单交互、触控和战斗烟测。
+- 自动验证命令是 `dotnet test PolymorphicAetherRing.sln -p:EnableModDeploy=false -p:EnableModZip=false`。
+- 未显式关闭部署时，构建会通过 Stardew ModBuildConfig 生成发布压缩包，并可能把模组复制到本机 Stardew Valley 的 `Mods` 目录；运行前应知晓这个副作用。
+- 自动测试覆盖熔铸附魔持久化与恢复；通过结果不能替代游戏内的菜单交互、触控和战斗烟测。

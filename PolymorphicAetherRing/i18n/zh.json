@@ -20,6 +20,8 @@
   "menu.fusion.returned": "已返还: {{weaponName}}",
   "menu.fusion.inventory_full": "背包已满，丢弃: {{weaponName}}",
   "menu.fusion.error.return_failed": "返还旧武器失败",
+  "menu.fusion.error.save_failed": "保存新熔铸武器失败",
+  "menu.fusion.warning.legacy_enchantment_levels": "这把武器由旧版 Mod 熔铸，当时没有保存锻造等级，只能按 1 级返还。",
   "menu.fusion.success": "熔铸成功！",
   "menu.fusion.no_weapons": "没有可熔铸的武器"
 }

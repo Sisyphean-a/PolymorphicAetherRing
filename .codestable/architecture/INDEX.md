@@ -12,7 +12,7 @@
 ## 按改动定位
 
 - 启动、内容注册、存档赠送、输入路由或配置：加载[模组包](packages/polymorphic-aether-ring.md)和[`context:aether-ring`](../requirements/contexts/aether-ring.md)。代码锚点：`ModEntry`、`ModConfig`。
-- 熔铸数据或战斗公式：加载同一包和领域上下文。代码锚点：`FusedWeaponData`、`RingCombatManager`。
+- 熔铸数据或战斗公式：加载同一包和领域上下文。代码锚点：`FusedWeaponData`、`FusedWeaponRestorer`、`RingCombatManager`。
 - 桌面或紧凑菜单：加载同一包和领域上下文。代码锚点：`FusionMenu`、`MobileFusionMenu` 及其 `Interaction`、`Rendering` 分部。
 - 本地化和物品展示：加载同一包和领域上下文。代码锚点：`i18n/*.json`、`ModEntry.OnAssetRequested`。
 

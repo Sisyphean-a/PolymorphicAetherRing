@@ -56,8 +56,11 @@ public class RingCombatManager
         var fusionSignature = FusedWeaponData.GetModDataSignature(ring);
         if (!string.Equals(fusionSignature, _cachedFusionSignature, StringComparison.Ordinal))
         {
-            _cachedFusionSignature = fusionSignature;
-            _cachedFusionData = FusedWeaponData.FromModData(ring);
+            RefreshFusionDataCache(
+                ring,
+                fusionSignature,
+                ref _cachedFusionSignature,
+                ref _cachedFusionData);
             
             if (_cachedFusionData != null)
             {
@@ -132,6 +135,29 @@ public class RingCombatManager
     
     /// <summary>执行光环攻击</summary>
     /// <returns>是否命中任何目标</returns>
+    /// <summary>
+    /// Failure: 损坏的新签名只报告一次并清空数据，绝不继续使用上一枚戒指的缓存。
+    /// </summary>
+    internal static void RefreshFusionDataCache(
+        Item ring,
+        string fusionSignature,
+        ref string? cachedSignature,
+        ref FusedWeaponData? cachedData)
+    {
+        try
+        {
+            FusedWeaponData? loadedData = FusedWeaponData.FromModData(ring);
+            cachedSignature = fusionSignature;
+            cachedData = loadedData;
+        }
+        catch
+        {
+            cachedSignature = fusionSignature;
+            cachedData = null;
+            throw;
+        }
+    }
+
     private bool ExecuteAuraAttack(Farmer player, FusedWeaponData fusionData)
     {
         var location = player.currentLocation;

@@ -20,6 +20,8 @@
   "menu.fusion.returned": "Returned: {{weaponName}}",
   "menu.fusion.inventory_full": "Inventory full, dropped: {{weaponName}}",
   "menu.fusion.error.return_failed": "Failed to return old weapon",
+  "menu.fusion.error.save_failed": "Failed to save the new fused weapon",
+  "menu.fusion.warning.legacy_enchantment_levels": "This weapon was fused by an older mod version. Its original forge levels weren't saved, so they can only be restored at level 1.",
   "menu.fusion.success": "Fusion Successful!",
   "menu.fusion.no_weapons": "No weapons available"
 }

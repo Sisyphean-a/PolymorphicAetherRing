@@ -12,8 +12,14 @@ public class FusedWeaponData
     /// <summary>武器ID</summary>
     public string WeaponId { get; set; } = string.Empty;
 
-    /// <summary>附魔列表 (类名)</summary>
-    public List<string> EnchantmentIds { get; set; } = new();
+    private const string EnchantmentsKey = ModDataPrefix + "EnchantmentsV2";
+    private const string LegacyEnchantmentIdsKey = ModDataPrefix + "EnchantmentIds";
+
+    /// <summary>附魔状态列表。</summary>
+    public List<FusedEnchantmentData> Enchantments { get; set; } = new();
+
+    /// <summary>数据是否来自未保存附魔等级的旧格式。</summary>
+    public bool HasLegacyEnchantmentData { get; private set; }
     
     /// <summary>武器名称</summary>
     public string WeaponName { get; set; } = string.Empty;
@@ -74,11 +80,15 @@ public class FusedWeaponData
             WeaponType = (int)weapon.type.Value
         };
 
-        // 提取附魔
         foreach (var enchantment in weapon.enchantments)
         {
-            // 保存附魔的类名 (例如 "VampiricEnchantment")
-            data.EnchantmentIds.Add(enchantment.GetType().Name);
+            Type enchantmentType = enchantment.GetType();
+            data.Enchantments.Add(new FusedEnchantmentData
+            {
+                TypeName = enchantmentType.FullName ?? enchantmentType.Name,
+                AssemblyName = enchantmentType.Assembly.GetName().Name,
+                Level = enchantment.Level
+            });
         }
 
         return data;
@@ -113,42 +123,51 @@ public class FusedWeaponData
         if (modData.TryGetValue(ModDataPrefix + "WeaponType", out var weaponType))
             data.WeaponType = int.Parse(weaponType);
 
-        if (modData.TryGetValue(ModDataPrefix + "EnchantmentIds", out var enchantments))
+        if (modData.TryGetValue(EnchantmentsKey, out string? enchantmentsJson))
         {
-            if (!string.IsNullOrEmpty(enchantments))
-            {
-                data.EnchantmentIds = enchantments.Split(',').ToList();
-            }
+            data.Enchantments = FusedEnchantmentDataCodec.Deserialize(enchantmentsJson);
+        }
+        else if (modData.TryGetValue(LegacyEnchantmentIdsKey, out string? legacyEnchantments)
+                 && !string.IsNullOrWhiteSpace(legacyEnchantments))
+        {
+            data.Enchantments = FusedEnchantmentDataCodec.DeserializeLegacy(legacyEnchantments);
+            data.HasLegacyEnchantmentData = true;
         }
             
         return data;
     }
 
-    /// <summary>将熔铸数据写入物品的 modData</summary>
+    /// <summary>预先序列化并验证待写入的熔铸数据。</summary>
+    internal FusedWeaponModDataUpdate PrepareSave()
+    {
+        var values = new Dictionary<string, string>
+        {
+            [ModDataPrefix + "WeaponId"] = WeaponId,
+            [ModDataPrefix + "WeaponName"] = WeaponName,
+            [ModDataPrefix + "MinDamage"] = MinDamage.ToString(),
+            [ModDataPrefix + "MaxDamage"] = MaxDamage.ToString(),
+            [ModDataPrefix + "Speed"] = Speed.ToString(),
+            [ModDataPrefix + "CritChance"] = CritChance.ToString(),
+            [ModDataPrefix + "CritMultiplier"] = CritMultiplier.ToString(),
+            [ModDataPrefix + "Knockback"] = Knockback.ToString(),
+            [ModDataPrefix + "AreaOfEffect"] = AreaOfEffect.ToString(),
+            [ModDataPrefix + "WeaponType"] = WeaponType.ToString()
+        };
+        var removedKeys = new List<string> { LegacyEnchantmentIdsKey };
+
+        if (Enchantments.Count > 0)
+            values[EnchantmentsKey] = FusedEnchantmentDataCodec.Serialize(Enchantments);
+        else
+            removedKeys.Add(EnchantmentsKey);
+
+        return new FusedWeaponModDataUpdate(values, removedKeys);
+    }
+
+    /// <summary>将熔铸数据写入物品的 modData。</summary>
     public void SaveToModData(Item item)
     {
-        var modData = item.modData;
-        
-        modData[ModDataPrefix + "WeaponId"] = WeaponId;
-        modData[ModDataPrefix + "WeaponName"] = WeaponName;
-        modData[ModDataPrefix + "MinDamage"] = MinDamage.ToString();
-        modData[ModDataPrefix + "MaxDamage"] = MaxDamage.ToString();
-        modData[ModDataPrefix + "Speed"] = Speed.ToString();
-        modData[ModDataPrefix + "CritChance"] = CritChance.ToString();
-        modData[ModDataPrefix + "CritMultiplier"] = CritMultiplier.ToString();
-        modData[ModDataPrefix + "Knockback"] = Knockback.ToString();
-        modData[ModDataPrefix + "AreaOfEffect"] = AreaOfEffect.ToString();
-        modData[ModDataPrefix + "WeaponType"] = WeaponType.ToString();
-        
-        if (EnchantmentIds.Count > 0)
-        {
-            modData[ModDataPrefix + "EnchantmentIds"] = string.Join(",", EnchantmentIds);
-        }
-        else
-        {
-            // 如果没有附魔，清理旧数据
-            modData.Remove(ModDataPrefix + "EnchantmentIds");
-        }
+        PrepareSave().ApplyTo(item);
+        HasLegacyEnchantmentData = false;
     }
 
     /// <summary>计算攻击冷却时间（毫秒）</summary>
