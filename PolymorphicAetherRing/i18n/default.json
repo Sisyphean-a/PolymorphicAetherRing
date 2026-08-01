@@ -23,5 +23,17 @@
   "menu.fusion.error.save_failed": "Failed to save the new fused weapon",
   "menu.fusion.warning.legacy_enchantment_levels": "This weapon was fused by an older mod version. Its original forge levels weren't saved, so they can only be restored at level 1.",
   "menu.fusion.success": "Fusion Successful!",
-  "menu.fusion.no_weapons": "No weapons available"
+  "menu.fusion.no_weapons": "No weapons available",
+  "tooltip.fusion.empty": "No weapon fused",
+  "tooltip.fusion.heading": "Fused weapon: {{weapon}}",
+  "tooltip.fusion.damage": "Damage: {{min}}-{{max}} | {{type}}",
+  "tooltip.fusion.speed": "Speed: {{speed}} | Interval: {{interval}}ms",
+  "tooltip.fusion.critical": "Critical: {{chance}}% | Power: x{{multiplier}}",
+  "tooltip.fusion.range": "Knockback: {{knockback}} | Range: {{range}}px",
+  "tooltip.fusion.enchantments": "Enchantments: {{enchantments}}",
+  "tooltip.fusion.enchantments.none": "None",
+  "tooltip.fusion.enchantment": "{{name}} Lv.{{level}}",
+  "tooltip.fusion.type.sword": "Sword",
+  "tooltip.fusion.type.dagger": "Dagger",
+  "tooltip.fusion.type.club": "Club"
 }

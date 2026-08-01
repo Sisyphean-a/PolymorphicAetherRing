@@ -1,3 +1,7 @@
+using System.Text;
+using HarmonyLib;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
@@ -17,6 +21,8 @@ public class ModEntry : Mod
     
     /// <summary>战斗管理器</summary>
     private RingCombatManager? _combatManager;
+
+    private static ITranslationHelper? _translations;
 
     /// <summary>配置项</summary>
     public ModConfig Config { get; private set; } = new();
@@ -39,6 +45,20 @@ public class ModEntry : Mod
     {
         // 1. 读取配置
         Config = helper.ReadConfig<ModConfig>();
+        _translations = helper.Translation;
+
+        var harmony = new Harmony(ModManifest.UniqueID);
+        harmony.Patch(
+            original: AccessTools.Method(typeof(StardewValley.Objects.Ring), nameof(StardewValley.Objects.Ring.getDescription)),
+            prefix: new HarmonyMethod(typeof(ModEntry), nameof(LocalizeAetherRingDisplayFields)),
+            postfix: new HarmonyMethod(typeof(ModEntry), nameof(AppendFusedWeaponTooltipDescription)));
+        harmony.Patch(
+            original: AccessTools.PropertyGetter(typeof(StardewValley.Objects.Ring), nameof(StardewValley.Objects.Ring.DisplayName)),
+            postfix: new HarmonyMethod(typeof(ModEntry), nameof(LocalizeAetherRingDisplayName)));
+        harmony.Patch(
+            original: AccessTools.Method(typeof(StardewValley.Objects.Ring), nameof(StardewValley.Objects.Ring.drawTooltip)),
+            prefix: new HarmonyMethod(typeof(ModEntry), nameof(LocalizeAetherRingDisplayFields)),
+            postfix: new HarmonyMethod(typeof(ModEntry), nameof(DrawFusedWeaponTooltip)));
         
         // 2. 注册事件
         helper.Events.Content.AssetRequested += OnAssetRequested;
@@ -127,6 +147,78 @@ public class ModEntry : Mod
             max: 1500,
             interval: 50
         );
+    }
+
+    private static void LocalizeAetherRingDisplayFields(StardewValley.Objects.Ring __instance)
+    {
+        if (__instance.QualifiedItemId != QualifiedRingId)
+            return;
+
+        ITranslationHelper translations = GetTranslations();
+        __instance.displayName = translations.Get("item.ring.name").ToString();
+        __instance.description = translations.Get("item.ring.description").ToString();
+    }
+
+    private static void LocalizeAetherRingDisplayName(
+        StardewValley.Objects.Ring __instance,
+        ref string __result)
+    {
+        if (__instance.QualifiedItemId != QualifiedRingId)
+            return;
+
+        __result = GetTranslations().Get("item.ring.name").ToString();
+    }
+
+    private static void AppendFusedWeaponTooltipDescription(
+        StardewValley.Objects.Ring __instance,
+        ref string __result)
+    {
+        if (__instance.QualifiedItemId != QualifiedRingId)
+            return;
+
+        __result = FusedWeaponTooltip.AppendToDescription(
+            __instance,
+            __result,
+            GetTranslations());
+    }
+
+    private static void DrawFusedWeaponTooltip(
+        StardewValley.Objects.Ring __instance,
+        SpriteBatch spriteBatch,
+        ref int x,
+        ref int y,
+        SpriteFont font,
+        float alpha,
+        StringBuilder overrideText)
+    {
+        if (__instance.QualifiedItemId != QualifiedRingId)
+            return;
+
+        string details = FusedWeaponTooltip.GetDetails(__instance, GetTranslations());
+        string wrappedDetails = Game1.parseText(
+            details,
+            Game1.smallFont,
+            GetTooltipWidth(__instance));
+        Utility.drawTextWithShadow(
+            spriteBatch,
+            wrappedDetails,
+            font,
+            new Vector2(x + 16, y + 20),
+            Game1.textColor * alpha);
+        y += (int)font.MeasureString(wrappedDetails).Y;
+    }
+
+    private static ITranslationHelper GetTranslations()
+    {
+        return _translations
+            ?? throw new InvalidOperationException("Tooltip translations are not initialized.");
+    }
+
+    private static int GetTooltipWidth(Item item)
+    {
+        return Math.Max(
+            272,
+            (int)Game1.dialogueFont.MeasureString(item.DisplayName ?? string.Empty).X);
     }
 
     /// <summary>注册戒指数据资产</summary>

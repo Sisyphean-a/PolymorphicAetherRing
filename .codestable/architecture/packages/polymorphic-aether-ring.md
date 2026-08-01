@@ -15,7 +15,7 @@ contexts:
 ## 外部边界
 
 - `manifest.json` 定义模组标识 `xixifu.PolymorphicAetherTrinket`、入口 DLL、最低 SMAPI 4.0 和 Stardew Valley 1.6。
-- `ModEntry.Entry` 是唯一运行入口，订阅资源请求、游戏启动、读档、逐帧更新、按下和释放事件。
+- `ModEntry.Entry` 是唯一运行入口，订阅资源请求、游戏启动、读档、逐帧更新、按下和释放事件，并安装戒指动态悬浮说明补丁。
 - `ModEntry.OnAssetRequested` 向 `Data/Objects` 与 `Strings/Objects` 注册物品 `xixifu.AetherRing`；当前售价是 5000。
 - Generic Mod Config Menu 是可选消费依赖；本包不对其他模组导出 API。
 
