@@ -1,8 +1,11 @@
+using System.Runtime.ExceptionServices;
 using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewValley;
+using StardewValley.Enchantments;
 using StardewValley.Monsters;
 using StardewValley.Objects;
+using StardewValley.Tools;
 using PolymorphicAetherRing;
 
 namespace PolymorphicAetherRing.Framework;
@@ -26,6 +29,9 @@ public class RingCombatManager
     /// <summary>缓存的熔铸数据签名</summary>
     private string? _cachedFusionSignature;
 
+    /// <summary>按熔铸数据重建、只在光环攻击中临时持有的武器。</summary>
+    private MeleeWeapon? _cachedFusionWeapon;
+
     public RingCombatManager(IModHelper helper, IMonitor monitor, ModConfig config)
     {
         _helper = helper;
@@ -48,6 +54,7 @@ public class RingCombatManager
         {
             _cachedFusionData = null;
             _cachedFusionSignature = null;
+            _cachedFusionWeapon = null;
             return;
         }
 
@@ -56,7 +63,7 @@ public class RingCombatManager
         var fusionSignature = FusedWeaponData.GetModDataSignature(ring);
         if (!string.Equals(fusionSignature, _cachedFusionSignature, StringComparison.Ordinal))
         {
-            RefreshFusionDataCache(
+            _cachedFusionWeapon = RefreshFusionDataCache(
                 ring,
                 fusionSignature,
                 ref _cachedFusionSignature,
@@ -84,7 +91,7 @@ public class RingCombatManager
         // 只有当时间足够，并且成功执行了攻击（命中了目标）时，才扣除冷却时间
         if (_timeSinceLastAttack >= _currentCooldownMs)
         {
-            if (ExecuteAuraAttack(player, _cachedFusionData))
+            if (ExecuteAuraAttack(player, _cachedFusionData, _cachedFusionWeapon!))
             {
                 // 使用减法而不是置0，以保持长期平均频率准确
                 _timeSinceLastAttack -= _currentCooldownMs;
@@ -138,7 +145,7 @@ public class RingCombatManager
     /// <summary>
     /// Failure: 损坏的新签名只报告一次并清空数据，绝不继续使用上一枚戒指的缓存。
     /// </summary>
-    internal static void RefreshFusionDataCache(
+    internal static MeleeWeapon? RefreshFusionDataCache(
         Item ring,
         string fusionSignature,
         ref string? cachedSignature,
@@ -147,8 +154,13 @@ public class RingCombatManager
         try
         {
             FusedWeaponData? loadedData = FusedWeaponData.FromModData(ring);
+            MeleeWeapon? loadedWeapon = loadedData is null
+                ? null
+                : FusedWeaponRestorer.CreateCombatWeapon(loadedData);
+
             cachedSignature = fusionSignature;
             cachedData = loadedData;
+            return loadedWeapon;
         }
         catch
         {
@@ -158,7 +170,10 @@ public class RingCombatManager
         }
     }
 
-    private bool ExecuteAuraAttack(Farmer player, FusedWeaponData fusionData)
+    private bool ExecuteAuraAttack(
+        Farmer player,
+        FusedWeaponData fusionData,
+        MeleeWeapon fusionWeapon)
     {
         var location = player.currentLocation;
         if (location == null)
@@ -197,13 +212,58 @@ public class RingCombatManager
         if (targetsHit.Count == 0)
             return false;
 
-        // 播放攻击音效
-        PlayAttackSound(fusionData.WeaponType, location);
-
-        // 对每个目标造成伤害
-        foreach (var monster in targetsHit)
+        // Flow: 临时切换为带附魔的熔铸武器并注册附魔，让同时依赖当前武器和玩家附魔的原版规则完整生效。
+        // Guarantee: 无论攻击或清理如何失败，都会恢复玩家原先手持武器，并尽力移除全部临时附魔。
+        Tool? previousTool = player.CurrentTool;
+        var equippedEnchantments = new List<BaseEnchantment>(fusionWeapon.enchantments.Count);
+        Exception? attackFailure = null;
+        try
         {
-            DealDamageToMonster(player, monster, fusionData, playerCenter);
+            player.CurrentTool = fusionWeapon;
+            foreach (BaseEnchantment enchantment in fusionWeapon.enchantments)
+            {
+                equippedEnchantments.Add(enchantment);
+                enchantment.OnEquip(player);
+            }
+
+            PlayAttackSound(fusionData.WeaponType, location);
+
+            foreach (Monster monster in targetsHit)
+                DealDamageToMonster(player, monster, fusionData, playerCenter);
+        }
+        catch (Exception exception)
+        {
+            attackFailure = exception;
+            throw;
+        }
+        finally
+        {
+            Exception? cleanupFailure = null;
+            for (int index = equippedEnchantments.Count - 1; index >= 0; index--)
+            {
+                try
+                {
+                    equippedEnchantments[index].OnUnequip(player);
+                }
+                catch (Exception exception)
+                {
+                    cleanupFailure ??= exception;
+                }
+            }
+
+            player.CurrentTool = previousTool;
+
+            if (cleanupFailure != null)
+            {
+                if (attackFailure != null)
+                {
+                    _monitor.Log($"Aura enchantment cleanup failed after an attack error: {cleanupFailure}", LogLevel.Error);
+                }
+                else
+                {
+                    ExceptionDispatchInfo.Capture(cleanupFailure).Throw();
+                }
+            }
         }
 
         // _monitor.Log($"Aura hit {targetsHit.Count} targets", LogLevel.Trace);

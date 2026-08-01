@@ -144,6 +144,39 @@ public class FusedEnchantmentDataCodecTests
     }
 
     [Fact]
+    public void CombatCacheRecreatesSavedEnchantmentEffectsAndLevels()
+    {
+        var ring = new MeleeWeapon();
+        new FusedWeaponData
+        {
+            WeaponId = "(W)4",
+            Enchantments = new List<FusedEnchantmentData>
+            {
+                CreateSavedEnchantment(typeof(CrusaderEnchantment), 1),
+                CreateSavedEnchantment(typeof(GalaxySoulEnchantment), 2),
+                CreateSavedEnchantment(typeof(TestForgeEnchantment), 3)
+            }
+        }.SaveToModData(ring);
+        string? cachedSignature = null;
+        FusedWeaponData? cachedData = null;
+
+        MeleeWeapon combatWeapon = Assert.IsType<MeleeWeapon>(
+            RingCombatManager.RefreshFusionDataCache(
+                ring,
+                FusedWeaponData.GetModDataSignature(ring),
+                ref cachedSignature,
+                ref cachedData));
+
+        Assert.NotNull(cachedData);
+        Assert.True(combatWeapon.hasEnchantmentOfType<CrusaderEnchantment>());
+        Assert.Collection(
+            combatWeapon.enchantments,
+            crusader => Assert.Equal(1, Assert.IsType<CrusaderEnchantment>(crusader).Level),
+            galaxySoul => Assert.Equal(2, Assert.IsType<GalaxySoulEnchantment>(galaxySoul).Level),
+            forge => Assert.Equal(3, Assert.IsType<TestForgeEnchantment>(forge).Level));
+    }
+
+    [Fact]
     public void RestorerDoesNotMergeDuplicateForgeEntries()
     {
         var weapon = new MeleeWeapon();

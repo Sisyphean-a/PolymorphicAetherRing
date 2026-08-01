@@ -21,14 +21,45 @@ internal static class FusedWeaponRestorer
         if (item is not MeleeWeapon weapon)
             throw new InvalidDataException($"Fused item '{data.WeaponId}' is not a melee weapon.");
 
+        RestoreWeaponState(weapon, data);
+        return weapon;
+    }
+
+    /// <summary>
+    /// Flow: 重建仅供光环攻击临时持有的武器，使依赖当前武器附魔的原版规则也能识别熔铸附魔。
+    /// </summary>
+    internal static MeleeWeapon CreateCombatWeapon(FusedWeaponData data)
+    {
+        if (!data.IsValid)
+            throw new InvalidDataException("Fused weapon ID is missing.");
+
+        var weapon = new MeleeWeapon();
+        RestoreWeaponState(weapon, data);
+        return weapon;
+    }
+
+    internal static IReadOnlyList<BaseEnchantment> CreateEnchantments(
+        IEnumerable<FusedEnchantmentData> savedEnchantments)
+    {
+        return savedEnchantments.Select(CreateEnchantment).ToList();
+    }
+
+    internal static void RestoreEnchantment(MeleeWeapon weapon, FusedEnchantmentData saved)
+    {
+        BaseEnchantment enchantment = CreateEnchantment(saved);
+        weapon.enchantments.Add(enchantment);
+        enchantment.ApplyTo(weapon);
+    }
+
+    private static void RestoreWeaponState(MeleeWeapon weapon, FusedWeaponData data)
+    {
         foreach (FusedEnchantmentData savedEnchantment in data.Enchantments)
             RestoreEnchantment(weapon, savedEnchantment);
 
         RestoreCombatStats(weapon, data);
-        return weapon;
     }
 
-    internal static void RestoreEnchantment(MeleeWeapon weapon, FusedEnchantmentData saved)
+    private static BaseEnchantment CreateEnchantment(FusedEnchantmentData saved)
     {
         Type type = FindEnchantmentType(saved)
             ?? throw new InvalidDataException($"Enchantment type '{saved.TypeName}' is not loaded.");
@@ -47,8 +78,7 @@ internal static class FusedWeaponRestorer
         }
 
         enchantment.Level = saved.Level;
-        weapon.enchantments.Add(enchantment);
-        enchantment.ApplyTo(weapon);
+        return enchantment;
     }
 
     private static Type? FindEnchantmentType(FusedEnchantmentData saved)

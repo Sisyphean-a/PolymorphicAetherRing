@@ -25,7 +25,7 @@ contexts:
 2. `ModEntry.OnButtonPressed` 与 `UpdateAndroidLongPress` 处理开菜单输入；Android 使用长按，其他平台使用普通确认输入。
 3. `ModEntry.CreateFusionMenu` 选择界面：Android，或 UI 视口任一边小于 `1064×768` 时使用 `MobileFusionMenu`，否则使用 `FusionMenu`。
 4. 两种菜单都只选择近战武器，并通过 `FusedWeaponData` 把一把武器的战斗属性、附魔类型身份和等级写入戒指 `modData`。
-5. `RingCombatManager.Update` 从已装备戒指读取熔铸签名；签名变化时刷新缓存，冷却结束且范围内存在存活怪物时执行一次 360 度光环攻击。
+5. `RingCombatManager.Update` 从已装备戒指读取熔铸签名；签名变化时刷新战斗属性和临时熔铸武器缓存，冷却结束且范围内存在存活怪物时执行一次 360 度光环攻击，并在本次攻击内切换该武器、注册附魔以触发原版伤害与击杀回调。
 
 ## 状态与不变量
 
