@@ -45,6 +45,7 @@ public class ModEntry : Mod
     {
         // 1. 读取配置
         Config = helper.ReadConfig<ModConfig>();
+        Config.Validate();
         _translations = helper.Translation;
 
         var harmony = new Harmony(ModManifest.UniqueID);
@@ -85,8 +86,12 @@ public class ModEntry : Mod
         // 注册模组配置
         configMenu.Register(
             mod: ModManifest,
-            reset: () => Config = new ModConfig(),
-            save: () => Helper.WriteConfig(Config)
+            reset: Config.ResetToDefaults,
+            save: () =>
+            {
+                Config.Validate();
+                Helper.WriteConfig(Config);
+            }
         );
 
         // 添加配置项
@@ -98,8 +103,8 @@ public class ModEntry : Mod
             tooltip: () => Helper.Translation.Get("config.damage_multiplier.tooltip"),
             getValue: () => Config.DamageMultiplier,
             setValue: value => Config.DamageMultiplier = value,
-            min: 0.1f,
-            max: 5.0f,
+            min: ModConfig.MinimumDamageMultiplier,
+            max: ModConfig.MaximumDamageMultiplier,
             interval: 0.1f
         );
 
@@ -109,8 +114,8 @@ public class ModEntry : Mod
             tooltip: () => Helper.Translation.Get("config.range_multiplier.tooltip"),
             getValue: () => Config.RangeMultiplier,
             setValue: value => Config.RangeMultiplier = value,
-            min: 0.5f,
-            max: 3.0f,
+            min: ModConfig.MinimumRangeMultiplier,
+            max: ModConfig.MaximumRangeMultiplier,
             interval: 0.1f
         );
         
@@ -120,8 +125,8 @@ public class ModEntry : Mod
             tooltip: () => Helper.Translation.Get("config.cooldown_multiplier.tooltip"),
             getValue: () => Config.CooldownMultiplier,
             setValue: value => Config.CooldownMultiplier = value,
-            min: 0.1f,
-            max: 2.0f,
+            min: ModConfig.MinimumCooldownMultiplier,
+            max: ModConfig.MaximumCooldownMultiplier,
             interval: 0.1f
         );
         
@@ -143,8 +148,8 @@ public class ModEntry : Mod
             tooltip: () => Helper.Translation.Get("config.android_long_press_ms.tooltip"),
             getValue: () => Config.AndroidLongPressMs,
             setValue: value => Config.AndroidLongPressMs = (int)value,
-            min: 200,
-            max: 1500,
+            min: ModConfig.MinimumAndroidLongPressMs,
+            max: ModConfig.MaximumAndroidLongPressMs,
             interval: 50
         );
     }

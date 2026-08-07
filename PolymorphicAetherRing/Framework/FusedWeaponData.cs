@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.IO;
 using StardewValley;
 using StardewValley.Tools;
 
@@ -107,21 +109,21 @@ public class FusedWeaponData
         if (modData.TryGetValue(ModDataPrefix + "WeaponName", out var name))
             data.WeaponName = name;
         if (modData.TryGetValue(ModDataPrefix + "MinDamage", out var minDmg))
-            data.MinDamage = int.Parse(minDmg);
+            data.MinDamage = ParsePersistedInt(minDmg, "MinDamage");
         if (modData.TryGetValue(ModDataPrefix + "MaxDamage", out var maxDmg))
-            data.MaxDamage = int.Parse(maxDmg);
+            data.MaxDamage = ParsePersistedInt(maxDmg, "MaxDamage");
         if (modData.TryGetValue(ModDataPrefix + "Speed", out var speed))
-            data.Speed = int.Parse(speed);
+            data.Speed = ParsePersistedInt(speed, "Speed");
         if (modData.TryGetValue(ModDataPrefix + "CritChance", out var critChance))
-            data.CritChance = float.Parse(critChance);
+            data.CritChance = ParsePersistedFloat(critChance, "CritChance");
         if (modData.TryGetValue(ModDataPrefix + "CritMultiplier", out var critMult))
-            data.CritMultiplier = float.Parse(critMult);
+            data.CritMultiplier = ParsePersistedFloat(critMult, "CritMultiplier");
         if (modData.TryGetValue(ModDataPrefix + "Knockback", out var knockback))
-            data.Knockback = float.Parse(knockback);
+            data.Knockback = ParsePersistedFloat(knockback, "Knockback");
         if (modData.TryGetValue(ModDataPrefix + "AreaOfEffect", out var aoe))
-            data.AreaOfEffect = int.Parse(aoe);
+            data.AreaOfEffect = ParsePersistedInt(aoe, "AreaOfEffect");
         if (modData.TryGetValue(ModDataPrefix + "WeaponType", out var weaponType))
-            data.WeaponType = int.Parse(weaponType);
+            data.WeaponType = ParsePersistedInt(weaponType, "WeaponType");
 
         if (modData.TryGetValue(EnchantmentsKey, out string? enchantmentsJson))
         {
@@ -133,25 +135,28 @@ public class FusedWeaponData
             data.Enchantments = FusedEnchantmentDataCodec.DeserializeLegacy(legacyEnchantments);
             data.HasLegacyEnchantmentData = true;
         }
-            
+
+        data.Validate();
         return data;
     }
 
     /// <summary>预先序列化并验证待写入的熔铸数据。</summary>
     internal FusedWeaponModDataUpdate PrepareSave()
     {
+        Validate();
+
         var values = new Dictionary<string, string>
         {
             [ModDataPrefix + "WeaponId"] = WeaponId,
             [ModDataPrefix + "WeaponName"] = WeaponName,
-            [ModDataPrefix + "MinDamage"] = MinDamage.ToString(),
-            [ModDataPrefix + "MaxDamage"] = MaxDamage.ToString(),
-            [ModDataPrefix + "Speed"] = Speed.ToString(),
-            [ModDataPrefix + "CritChance"] = CritChance.ToString(),
-            [ModDataPrefix + "CritMultiplier"] = CritMultiplier.ToString(),
-            [ModDataPrefix + "Knockback"] = Knockback.ToString(),
-            [ModDataPrefix + "AreaOfEffect"] = AreaOfEffect.ToString(),
-            [ModDataPrefix + "WeaponType"] = WeaponType.ToString()
+            [ModDataPrefix + "MinDamage"] = MinDamage.ToString(CultureInfo.InvariantCulture),
+            [ModDataPrefix + "MaxDamage"] = MaxDamage.ToString(CultureInfo.InvariantCulture),
+            [ModDataPrefix + "Speed"] = Speed.ToString(CultureInfo.InvariantCulture),
+            [ModDataPrefix + "CritChance"] = CritChance.ToString(CultureInfo.InvariantCulture),
+            [ModDataPrefix + "CritMultiplier"] = CritMultiplier.ToString(CultureInfo.InvariantCulture),
+            [ModDataPrefix + "Knockback"] = Knockback.ToString(CultureInfo.InvariantCulture),
+            [ModDataPrefix + "AreaOfEffect"] = AreaOfEffect.ToString(CultureInfo.InvariantCulture),
+            [ModDataPrefix + "WeaponType"] = WeaponType.ToString(CultureInfo.InvariantCulture)
         };
         var removedKeys = new List<string> { LegacyEnchantmentIdsKey };
 
@@ -161,6 +166,58 @@ public class FusedWeaponData
             removedKeys.Add(EnchantmentsKey);
 
         return new FusedWeaponModDataUpdate(values, removedKeys);
+    }
+
+    internal void Validate()
+    {
+        if (string.IsNullOrWhiteSpace(WeaponId))
+            throw new InvalidDataException("Fused weapon ID is missing.");
+
+        if (MinDamage < 0 || MaxDamage < MinDamage || MaxDamage == int.MaxValue)
+        {
+            throw new InvalidDataException(
+                $"Fused weapon damage range is invalid: {MinDamage} to {MaxDamage}.");
+        }
+
+        if (!float.IsFinite(CritChance)
+            || !float.IsFinite(CritMultiplier)
+            || !float.IsFinite(Knockback))
+        {
+            throw new InvalidDataException("Fused weapon contains a non-finite combat value.");
+        }
+
+        if (AreaOfEffect < 0)
+            throw new InvalidDataException($"Fused weapon area of effect is invalid: {AreaOfEffect}.");
+
+        if (WeaponType is < 0 or > 3)
+            throw new InvalidDataException($"Fused weapon type is invalid: {WeaponType}.");
+    }
+
+    private static int ParsePersistedInt(string value, string fieldName)
+    {
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+            return parsed;
+
+        throw new InvalidDataException($"Fused weapon field '{fieldName}' is not a valid integer.");
+    }
+
+    private static float ParsePersistedFloat(string value, string fieldName)
+    {
+        const NumberStyles styles = NumberStyles.Float;
+        if (float.TryParse(value, styles, CultureInfo.InvariantCulture, out float parsed))
+            return parsed;
+
+        if (value.Contains(',', StringComparison.Ordinal)
+            && !value.Contains('.', StringComparison.Ordinal)
+            && float.TryParse(value.Replace(',', '.'), styles, CultureInfo.InvariantCulture, out parsed))
+        {
+            return parsed;
+        }
+
+        if (float.TryParse(value, styles, CultureInfo.CurrentCulture, out parsed))
+            return parsed;
+
+        throw new InvalidDataException($"Fused weapon field '{fieldName}' is not a valid floating-point value.");
     }
 
     /// <summary>将熔铸数据写入物品的 modData。</summary>
@@ -182,7 +239,7 @@ public class FusedWeaponData
         };
         
         // 速度每点减少40ms
-        return Math.Max(100, baseTime - Speed * 40);
+        return (int)Math.Clamp((long)baseTime - (long)Speed * 40, 100L, int.MaxValue);
     }
 
     /// <summary>计算攻击半径（像素）</summary>

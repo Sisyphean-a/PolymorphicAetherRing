@@ -26,16 +26,11 @@ internal static class FusedWeaponRestorer
     }
 
     /// <summary>
-    /// Flow: 重建仅供光环攻击临时持有的武器，使依赖当前武器附魔的原版规则也能识别熔铸附魔。
+    /// Flow: 临时战斗武器沿用原武器 ID 与完整战斗状态，使原版依赖武器身份的规则保持生效。
     /// </summary>
     internal static MeleeWeapon CreateCombatWeapon(FusedWeaponData data)
     {
-        if (!data.IsValid)
-            throw new InvalidDataException("Fused weapon ID is missing.");
-
-        var weapon = new MeleeWeapon();
-        RestoreWeaponState(weapon, data);
-        return weapon;
+        return CreateWeapon(data);
     }
 
     internal static IReadOnlyList<BaseEnchantment> CreateEnchantments(
@@ -51,8 +46,9 @@ internal static class FusedWeaponRestorer
         enchantment.ApplyTo(weapon);
     }
 
-    private static void RestoreWeaponState(MeleeWeapon weapon, FusedWeaponData data)
+    internal static void RestoreWeaponState(MeleeWeapon weapon, FusedWeaponData data)
     {
+        data.Validate();
         foreach (FusedEnchantmentData savedEnchantment in data.Enchantments)
             RestoreEnchantment(weapon, savedEnchantment);
 
@@ -150,5 +146,6 @@ internal static class FusedWeaponRestorer
         weapon.critMultiplier.Value = data.CritMultiplier;
         weapon.knockback.Value = data.Knockback;
         weapon.addedAreaOfEffect.Value = data.AreaOfEffect;
+        weapon.type.Value = data.WeaponType;
     }
 }

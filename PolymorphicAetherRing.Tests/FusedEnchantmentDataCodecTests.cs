@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.IO;
+using PolymorphicAetherRing;
 using PolymorphicAetherRing.Framework;
 using StardewValley.Enchantments;
 using StardewValley.Tools;
@@ -144,36 +146,115 @@ public class FusedEnchantmentDataCodecTests
     }
 
     [Fact]
-    public void CombatCacheRecreatesSavedEnchantmentEffectsAndLevels()
+    public void CombatWeaponRestoresSavedEffectsLevelsAndType()
     {
-        var ring = new MeleeWeapon();
-        new FusedWeaponData
+        var combatWeapon = new MeleeWeapon();
+        var fusionData = new FusedWeaponData
         {
             WeaponId = "(W)4",
+            WeaponType = 1,
             Enchantments = new List<FusedEnchantmentData>
             {
                 CreateSavedEnchantment(typeof(CrusaderEnchantment), 1),
                 CreateSavedEnchantment(typeof(GalaxySoulEnchantment), 2),
                 CreateSavedEnchantment(typeof(TestForgeEnchantment), 3)
             }
-        }.SaveToModData(ring);
-        string? cachedSignature = null;
-        FusedWeaponData? cachedData = null;
+        };
 
-        MeleeWeapon combatWeapon = Assert.IsType<MeleeWeapon>(
-            RingCombatManager.RefreshFusionDataCache(
-                ring,
-                FusedWeaponData.GetModDataSignature(ring),
-                ref cachedSignature,
-                ref cachedData));
+        FusedWeaponRestorer.RestoreWeaponState(combatWeapon, fusionData);
 
-        Assert.NotNull(cachedData);
+        Assert.Equal(1, combatWeapon.type.Value);
         Assert.True(combatWeapon.hasEnchantmentOfType<CrusaderEnchantment>());
         Assert.Collection(
             combatWeapon.enchantments,
             crusader => Assert.Equal(1, Assert.IsType<CrusaderEnchantment>(crusader).Level),
             galaxySoul => Assert.Equal(2, Assert.IsType<GalaxySoulEnchantment>(galaxySoul).Level),
             forge => Assert.Equal(3, Assert.IsType<TestForgeEnchantment>(forge).Level));
+    }
+
+    [Fact]
+    public void FusionDataUsesInvariantCultureAndReadsLegacyCommaDecimal()
+    {
+        var source = new FusedWeaponData
+        {
+            WeaponId = "(W)4",
+            CritChance = 0.15f,
+            CritMultiplier = 3.5f,
+            Knockback = 1.25f
+        };
+        var holder = new MeleeWeapon();
+
+        using (new CultureScope("de-DE"))
+            source.SaveToModData(holder);
+
+        Assert.Equal("0.15", holder.modData["xixifu.AetherTrinket/CritChance"]);
+        holder.modData["xixifu.AetherTrinket/CritChance"] = "0,15";
+        holder.modData["xixifu.AetherTrinket/CritMultiplier"] = "3,5";
+        holder.modData["xixifu.AetherTrinket/Knockback"] = "1,25";
+
+        using (new CultureScope("en-US"))
+        {
+            FusedWeaponData restored = Assert.IsType<FusedWeaponData>(FusedWeaponData.FromModData(holder));
+            Assert.Equal(0.15f, restored.CritChance);
+            Assert.Equal(3.5f, restored.CritMultiplier);
+            Assert.Equal(1.25f, restored.Knockback);
+        }
+    }
+
+    [Fact]
+    public void InvalidFusionDamageRangeIsRejectedBeforeCombat()
+    {
+        var holder = new MeleeWeapon();
+        holder.modData["xixifu.AetherTrinket/WeaponId"] = "(W)4";
+        holder.modData["xixifu.AetherTrinket/MinDamage"] = "100";
+        holder.modData["xixifu.AetherTrinket/MaxDamage"] = "50";
+
+        Assert.Throws<InvalidDataException>(() => FusedWeaponData.FromModData(holder));
+    }
+
+    [Fact]
+    public void ConfigResetPreservesReferenceAndRestoresDefaults()
+    {
+        var config = new ModConfig
+        {
+            DamageMultiplier = 2.5f,
+            RangeMultiplier = 2f,
+            CooldownMultiplier = 0.5f,
+            ReturnFusedWeapon = true,
+            AndroidLongPressMs = 1_000
+        };
+        ModConfig reference = config;
+
+        config.ResetToDefaults();
+
+        Assert.Same(reference, config);
+        Assert.Equal(1f, config.DamageMultiplier);
+        Assert.Equal(1f, config.RangeMultiplier);
+        Assert.Equal(1f, config.CooldownMultiplier);
+        Assert.False(config.ReturnFusedWeapon);
+        Assert.Equal(500, config.AndroidLongPressMs);
+    }
+
+    [Theory]
+    [InlineData(float.NaN)]
+    [InlineData(0f)]
+    [InlineData(5.1f)]
+    public void InvalidDamageMultiplierIsRejected(float value)
+    {
+        var config = new ModConfig { DamageMultiplier = value };
+
+        Assert.Throws<InvalidDataException>(config.Validate);
+    }
+
+    [Fact]
+    public void InvalidRangeCooldownAndLongPressSettingsAreRejected()
+    {
+        Assert.Throws<InvalidDataException>(() =>
+            new ModConfig { RangeMultiplier = -1f }.Validate());
+        Assert.Throws<InvalidDataException>(() =>
+            new ModConfig { CooldownMultiplier = float.PositiveInfinity }.Validate());
+        Assert.Throws<InvalidDataException>(() =>
+            new ModConfig { AndroidLongPressMs = 199 }.Validate());
     }
 
     [Fact]
@@ -284,6 +365,25 @@ public class FusedEnchantmentDataCodecTests
         Assert.Equal(
             initial.OrderBy(pair => pair.Key),
             store.Values.OrderBy(pair => pair.Key));
+    }
+
+    private sealed class CultureScope : IDisposable
+    {
+        private readonly CultureInfo _originalCulture = CultureInfo.CurrentCulture;
+        private readonly CultureInfo _originalUiCulture = CultureInfo.CurrentUICulture;
+
+        public CultureScope(string name)
+        {
+            var culture = CultureInfo.GetCultureInfo(name);
+            CultureInfo.CurrentCulture = culture;
+            CultureInfo.CurrentUICulture = culture;
+        }
+
+        public void Dispose()
+        {
+            CultureInfo.CurrentCulture = _originalCulture;
+            CultureInfo.CurrentUICulture = _originalUiCulture;
+        }
     }
 
     private static FusedEnchantmentData CreateSavedEnchantment(Type type, int level)

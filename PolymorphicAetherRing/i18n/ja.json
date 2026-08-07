@@ -9,6 +9,9 @@
   "config.fusion_settings": "融合設定",
   "config.return_fused_weapon": "融合武器の返還",
   "config.return_fused_weapon.tooltip": "有効にすると、新しい武器を融合した際に、以前融合していた武器がインベントリに返還されます。",
+  "config.android_settings": "Android設定",
+  "config.android_long_press_ms": "長押し時間",
+  "config.android_long_press_ms.tooltip": "Androidで融合メニューを開くまでの長押し時間です。",
 
   "item.ring.name": "エーテル多態リング",
   "item.ring.description": "武器の魂を渇望しているかのような、唸りを上げる神秘的な装置。",
@@ -22,6 +25,7 @@
   "menu.fusion.error.save_failed": "新しい融合武器の保存に失敗しました",
   "menu.fusion.warning.legacy_enchantment_levels": "この武器は旧バージョンで融合されたため、元の鍛造レベルは保存されておらず、レベル1としてのみ復元できます。",
   "menu.fusion.success": "融合成功！",
+  "menu.fusion.no_weapons": "融合できる武器がありません",
   "tooltip.fusion.empty": "融合武器なし",
   "tooltip.fusion.heading": "融合武器：{{weapon}}",
   "tooltip.fusion.damage": "ダメージ：{{min}}-{{max}}｜{{type}}",
