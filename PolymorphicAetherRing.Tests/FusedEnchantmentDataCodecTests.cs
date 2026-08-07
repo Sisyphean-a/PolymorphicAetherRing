@@ -177,6 +177,37 @@ public class FusedEnchantmentDataCodecTests
     }
 
     [Fact]
+    public void TemporaryCombatWeaponRestoresExistingTemporaryItem()
+    {
+        object? temporaryItem = new object();
+        object previousTemporaryItem = temporaryItem;
+        object fusionWeapon = new object();
+
+        RingCombatManager.WithTemporaryItem(
+            () => temporaryItem,
+            item => temporaryItem = item,
+            fusionWeapon,
+            () => Assert.Same(fusionWeapon, temporaryItem));
+
+        Assert.Same(previousTemporaryItem, temporaryItem);
+    }
+
+    [Fact]
+    public void TemporaryCombatWeaponRestoresExistingTemporaryItemAfterFailure()
+    {
+        object? temporaryItem = new object();
+        object previousTemporaryItem = temporaryItem;
+
+        Assert.Throws<InvalidOperationException>(() => RingCombatManager.WithTemporaryItem(
+            () => temporaryItem,
+            item => temporaryItem = item,
+            new object(),
+            () => throw new InvalidOperationException("Injected combat failure.")));
+
+        Assert.Same(previousTemporaryItem, temporaryItem);
+    }
+
+    [Fact]
     public void RestorerDoesNotMergeDuplicateForgeEntries()
     {
         var weapon = new MeleeWeapon();

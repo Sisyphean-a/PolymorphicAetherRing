@@ -212,24 +212,25 @@ public class RingCombatManager
         if (targetsHit.Count == 0)
             return false;
 
-        // Flow: 临时切换为带附魔的熔铸武器并注册附魔，让同时依赖当前武器和玩家附魔的原版规则完整生效。
-        // Guarantee: 无论攻击或清理如何失败，都会恢复玩家原先手持武器，并尽力移除全部临时附魔。
-        Tool? previousTool = player.CurrentTool;
+        // Flow: 让熔铸武器临时成为 CurrentTool，但不修改玩家当前快捷栏中的物品。
+        // Guarantee: 无论攻击或清理如何失败，都会还原既有临时物品，并尽力移除全部临时附魔。
         var equippedEnchantments = new List<BaseEnchantment>(fusionWeapon.enchantments.Count);
         Exception? attackFailure = null;
         try
         {
-            player.CurrentTool = fusionWeapon;
-            foreach (BaseEnchantment enchantment in fusionWeapon.enchantments)
+            WithTemporaryCombatWeapon(player, fusionWeapon, () =>
             {
-                equippedEnchantments.Add(enchantment);
-                enchantment.OnEquip(player);
-            }
+                foreach (BaseEnchantment enchantment in fusionWeapon.enchantments)
+                {
+                    equippedEnchantments.Add(enchantment);
+                    enchantment.OnEquip(player);
+                }
 
-            PlayAttackSound(fusionData.WeaponType, location);
+                PlayAttackSound(fusionData.WeaponType, location);
 
-            foreach (Monster monster in targetsHit)
-                DealDamageToMonster(player, monster, fusionData, playerCenter);
+                foreach (Monster monster in targetsHit)
+                    DealDamageToMonster(player, monster, fusionData, playerCenter);
+            });
         }
         catch (Exception exception)
         {
@@ -239,19 +240,20 @@ public class RingCombatManager
         finally
         {
             Exception? cleanupFailure = null;
-            for (int index = equippedEnchantments.Count - 1; index >= 0; index--)
+            WithTemporaryCombatWeapon(player, fusionWeapon, () =>
             {
-                try
+                for (int index = equippedEnchantments.Count - 1; index >= 0; index--)
                 {
-                    equippedEnchantments[index].OnUnequip(player);
+                    try
+                    {
+                        equippedEnchantments[index].OnUnequip(player);
+                    }
+                    catch (Exception exception)
+                    {
+                        cleanupFailure ??= exception;
+                    }
                 }
-                catch (Exception exception)
-                {
-                    cleanupFailure ??= exception;
-                }
-            }
-
-            player.CurrentTool = previousTool;
+            });
 
             if (cleanupFailure != null)
             {
@@ -268,6 +270,37 @@ public class RingCombatManager
 
         // _monitor.Log($"Aura hit {targetsHit.Count} targets", LogLevel.Trace);
         return true;
+    }
+
+    /// <summary>
+    /// Guarantee: 熔铸武器只作为临时物品暴露给原版附魔逻辑，玩家当前快捷栏和已有临时物品均会复原。
+    /// </summary>
+    internal static void WithTemporaryCombatWeapon(Farmer player, MeleeWeapon fusionWeapon, Action action)
+    {
+        WithTemporaryItem(
+            () => player.TemporaryItem,
+            item => player.TemporaryItem = item,
+            fusionWeapon,
+            action);
+    }
+
+    internal static void WithTemporaryItem<T>(
+        Func<T?> getTemporaryItem,
+        Action<T?> setTemporaryItem,
+        T temporaryItem,
+        Action action)
+        where T : class
+    {
+        T? previousTemporaryItem = getTemporaryItem();
+        try
+        {
+            setTemporaryItem(temporaryItem);
+            action();
+        }
+        finally
+        {
+            setTemporaryItem(previousTemporaryItem);
+        }
     }
 
     /// <summary>对单个怪物造成伤害</summary>
